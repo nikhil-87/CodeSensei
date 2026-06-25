@@ -1,0 +1,48 @@
+# yamllint configuration — enforced in CI.
+
+extends: default
+
+rules:
+  # Allow long lines in compose files and dashboard alerts.
+  line-length:
+    max: 200
+    level: warning
+  # Comments are allowed to start on column 1.
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  # Document-start (---) is optional — most of our YAML omits it.
+  document-start: disable
+  # Truthy: only enforce on values, not keys (Compose uses on/off keys).
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false
+  # Indentation: spaces only, 2-space (Prometheus rules nest deeper).
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+  # Disable line-ending rule — repo allows CRLF on Windows checkouts.
+  new-lines: disable
+  # Allow aligned colons (used in workflow outputs blocks).
+  colons:
+    max-spaces-before: 0
+    max-spaces-after: -1
+  # Inline flow-mappings are used heavily for compose healthchecks
+  # ({ condition: service_healthy }) and Prometheus Go-template labels.
+  braces:
+    max-spaces-inside: -1
+    max-spaces-inside-empty: -1
+  # Same for inline arrays — networks: [observability, internal].
+  brackets:
+    max-spaces-inside: -1
+    max-spaces-inside-empty: -1
+  empty-lines:
+    max: 2
+  trailing-spaces: enable
+
+ignore: |
+  node_modules
+  **/node_modules/**
+  frontend/dist
+  **/.venv/**
+  **/coverage/**

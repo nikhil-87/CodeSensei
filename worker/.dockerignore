@@ -1,0 +1,32 @@
+# Keep the build context lean — repo-root build for the worker only needs
+# the analysis-engine/ and worker/ trees plus a couple of metadata files.
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.coverage
+**/htmlcov
+**/.venv
+**/venv
+**/node_modules
+**/dist
+**/.git
+**/.github
+**/docs
+**/tests
+**/.dockerignore
+**/Dockerfile
+**/.env*
+**/*.md
+# The worker persists results through the backend's ORM models, so the
+# `app` package must remain in the build context. Everything else under
+# backend/ is excluded to keep the context lean.
+backend/alembic/
+backend/tests/
+backend/Dockerfile
+backend/.dockerignore
+frontend/
+infrastructure/
+docker/
+scripts/

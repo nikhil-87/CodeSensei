@@ -1,0 +1,20 @@
+# Frontend build context — only ship what Vite needs.
+node_modules
+dist
+.vite
+coverage
+playwright-report
+test-results
+**/*.log
+.env
+.env.*
+!.env.example
+.git
+.github
+docs
+tests
+**/__snapshots__
+.dockerignore
+Dockerfile
+*.md
+!README.md

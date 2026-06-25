@@ -1,0 +1,28 @@
+# markdownlint-cli2 configuration.
+#
+# Linting markdown is enforced for the docs/ tree and PR bodies.
+# Rules are tuned to match how the existing docs are written; we don't
+# rewrite markdown style mid-stream.
+config:
+  # Line length — disabled. Wrapping prose at 80 cols breaks tables.
+  MD013: false
+  # Allow inline HTML (used for collapsible sections in docs/).
+  MD033: false
+  # Headings can be bare text adjacent to lists in our verification docs.
+  MD024:
+    siblings_only: true
+  # Bare URLs are fine inside tables.
+  MD034: false
+  # Multiple top-level headings forbidden — we already use h1 once per file.
+  MD025: true
+  # Allow long lines inside fenced code blocks.
+  MD040: true
+
+ignores:
+  - node_modules
+  - "**/node_modules/**"
+  - frontend/dist
+  - "**/dist/**"
+  - analysis-engine/.venv
+  - "**/.venv/**"
+  - .github/PULL_REQUEST_TEMPLATE.md  # uses HTML comments by design

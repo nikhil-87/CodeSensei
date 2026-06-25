@@ -1,0 +1,401 @@
+# =============================================================================
+# Continuous Integration
+#
+# Triggered on every push to main and every pull request. Job graph:
+#
+#                  ┌──► lint-python ────┐
+#                  ├──► lint-frontend ──┤
+#   detect-changes ┼──► test-engine ────┼──► docker-build (matrix)
+#                  ├──► test-backend ───┤        │
+#                  ├──► test-worker ────┤        ▼
+#                  └──► test-frontend ──┘   security-scan
+#
+# `detect-changes` skips downstream jobs when only docs/markdown change.
+# Each job is independent — a failure in one does not cancel others (so a
+# full report shows up in the PR).
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect what changed so we can skip irrelevant jobs on docs-only PRs.
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend:   ${{ steps.filter.outputs.backend }}
+      worker:    ${{ steps.filter.outputs.worker }}
+      engine:    ${{ steps.filter.outputs.engine }}
+      frontend:  ${{ steps.filter.outputs.frontend }}
+      docker:    ${{ steps.filter.outputs.docker }}
+      anycode:   ${{ steps.filter.outputs.anycode }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            worker:
+              - 'worker/**'
+              - 'analysis-engine/**'
+              - '.github/workflows/ci.yml'
+            engine:
+              - 'analysis-engine/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            docker:
+              - 'docker/**'
+              - 'infrastructure/**'
+              - '**/Dockerfile'
+              - '.github/workflows/ci.yml'
+            anycode:
+              - 'backend/**'
+              - 'worker/**'
+              - 'analysis-engine/**'
+              - 'frontend/**'
+
+  # ---------------------------------------------------------------------------
+  # Python lint — runs Ruff against every Python package in one job for speed.
+  # ---------------------------------------------------------------------------
+  lint-python:
+    name: Lint (Python)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.anycode == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install Ruff
+        run: pip install ruff==0.6.9
+      - name: Ruff check (analysis-engine)
+        run: ruff check analysis-engine
+      - name: Ruff check (backend)
+        run: ruff check backend
+      - name: Ruff check (worker)
+        run: ruff check worker
+      - name: Ruff format diff
+        run: ruff format --check analysis-engine backend worker
+
+  # ---------------------------------------------------------------------------
+  # Frontend lint + typecheck — fast, no test runtime needed.
+  # ---------------------------------------------------------------------------
+  lint-frontend:
+    name: Lint (Frontend)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+  # ---------------------------------------------------------------------------
+  # Analysis-engine tests — fast, pure-Python, no services required.
+  # ---------------------------------------------------------------------------
+  test-engine:
+    name: Test (analysis-engine)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.engine == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: analysis-engine/pyproject.toml
+      - name: Install
+        working-directory: analysis-engine
+        run: pip install -e ".[dev]"
+      - name: Pytest
+        working-directory: analysis-engine
+        run: pytest --cov=engine --cov-report=xml --cov-report=term -q
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-engine
+          path: analysis-engine/coverage.xml
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Backend tests — needs Postgres + Redis services for integration coverage.
+  # ---------------------------------------------------------------------------
+  test-backend:
+    name: Test (backend)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: codesensei
+          POSTGRES_PASSWORD: codesensei
+          POSTGRES_DB: codesensei_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U codesensei"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: codesensei
+      POSTGRES_PASSWORD: codesensei
+      POSTGRES_DB: codesensei_test
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      APP_SECRET_KEY: ci-secret-key-not-for-production-use-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install
+        working-directory: backend
+        run: pip install -e ".[dev]"
+      - name: Pytest
+        working-directory: backend
+        run: pytest --cov=app --cov-report=xml --cov-report=term -q
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-backend
+          path: backend/coverage.xml
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Worker tests — uses fakeredis, so no Redis service needed.
+  # ---------------------------------------------------------------------------
+  test-worker:
+    name: Test (worker)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            worker/pyproject.toml
+            analysis-engine/pyproject.toml
+      - name: Install engine (editable)
+        working-directory: analysis-engine
+        run: pip install -e ".[dev]"
+      - name: Install worker (editable)
+        working-directory: worker
+        run: pip install -e ".[dev]"
+      - name: Pytest
+        working-directory: worker
+        run: pytest -q
+
+  # ---------------------------------------------------------------------------
+  # Frontend tests — Vitest unit tests.
+  # ---------------------------------------------------------------------------
+  test-frontend:
+    name: Test (frontend)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run test:coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-frontend
+          path: frontend/coverage
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Docker build matrix — proves every Dockerfile builds cleanly.
+  # Uses Buildx with GHA cache to keep CI fast.
+  # ---------------------------------------------------------------------------
+  docker-build:
+    name: Docker build (${{ matrix.service }})
+    needs: [detect-changes, lint-python, lint-frontend]
+    if: needs.detect-changes.outputs.docker == 'true' || needs.detect-changes.outputs.anycode == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            context: .
+            dockerfile: backend/Dockerfile
+          - service: worker
+            context: .
+            dockerfile: worker/Dockerfile
+          - service: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: codesensei/${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,scope=${{ matrix.service }},mode=max
+
+  # ---------------------------------------------------------------------------
+  # Compose validation — proves the layered compose stacks merge cleanly.
+  # ---------------------------------------------------------------------------
+  compose-validate:
+    name: Compose validate
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare env
+        run: cp .env.example .env
+      - name: Validate base
+        run: docker compose -f docker/docker-compose.yml --env-file .env config --quiet
+      - name: Validate dev overlay
+        run: |
+          docker compose -f docker/docker-compose.yml \
+                         -f docker/docker-compose.dev.yml \
+                         --env-file .env config --quiet
+      - name: Validate prod overlay
+        run: |
+          docker compose -f docker/docker-compose.yml \
+                         -f docker/docker-compose.prod.yml \
+                         --env-file .env config --quiet
+      - name: Validate observability overlay
+        run: |
+          docker compose -f docker/docker-compose.yml \
+                         -f docker/docker-compose.observability.yml \
+                         --env-file .env config --quiet
+
+  # ---------------------------------------------------------------------------
+  # Security scan — Trivy filesystem scan + secret scan.
+  # ---------------------------------------------------------------------------
+  security-scan:
+    name: Security scan
+    needs: detect-changes
+    if: needs.detect-changes.outputs.anycode == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: sarif
+          output: trivy.sarif
+          exit-code: "0"   # report, do not fail the build
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-fs
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Final aggregator — gives the PR a single required status.
+  # ---------------------------------------------------------------------------
+  ci-success:
+    name: CI success
+    if: always()
+    needs:
+      - detect-changes
+      - lint-python
+      - lint-frontend
+      - test-engine
+      - test-backend
+      - test-worker
+      - test-frontend
+      - docker-build
+      - compose-validate
+      - security-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all jobs succeeded or were skipped
+        run: |
+          set -euo pipefail
+          results='${{ toJson(needs) }}'
+          echo "$results"
+          # fail if any job result is "failure" or "cancelled"
+          echo "$results" | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)
+          bad = {k: v["result"] for k, v in d.items() if v["result"] in ("failure", "cancelled")}
+          if bad:
+              print("Failed/cancelled jobs:", bad)
+              sys.exit(1)
+          print("All jobs OK")
+          '

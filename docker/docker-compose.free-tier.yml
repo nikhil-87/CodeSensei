@@ -1,0 +1,235 @@
+# =============================================================================
+# Docker Compose — Free Tier Deployment
+#
+# Optimized for completely free cloud deployment using:
+#   - Groq API for LLM (free, 30 req/min)
+#   - HuggingFace or local embeddings (free)
+#   - External managed services (Neon, Upstash, etc.)
+#
+# This stack removes Ollama (requires 8GB+ RAM) and reduces memory footprint
+# to run on free-tier VMs (1-4GB RAM).
+#
+# Usage:
+#   cp .env.free-tier .env
+#   docker compose -f docker/docker-compose.free-tier.yml up -d
+#
+# =============================================================================
+name: codesensei-free
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend API (FastAPI)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: codesensei-backend
+    restart: unless-stopped
+    environment:
+      # Core
+      APP_ENV: ${APP_ENV:-production}
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?Set APP_SECRET_KEY in .env}
+      APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-*}
+
+      # Authentication (GitHub OAuth + cookie sessions)
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      GITHUB_OAUTH_CALLBACK_URL: ${GITHUB_OAUTH_CALLBACK_URL:-http://localhost:3000/api/v1/auth/github/callback}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-codesensei_session}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
+      AUTH_DEV_LOGIN_ENABLED: ${AUTH_DEV_LOGIN_ENABLED:-true}
+
+      # Mock auth (local dev only — ignored when APP_ENV=production) + feature flags
+      MOCK_AUTH: ${MOCK_AUTH:-false}
+      FEATURE_AI_CHAT_ENABLED: ${FEATURE_AI_CHAT_ENABLED:-true}
+      FEATURE_ANALYTICS_ENABLED: ${FEATURE_ANALYTICS_ENABLED:-false}
+      FEATURE_NOTIFICATIONS_ENABLED: ${FEATURE_NOTIFICATIONS_ENABLED:-false}
+
+      # API
+      API_HOST: "0.0.0.0"
+      API_PORT: "8000"
+      API_WORKERS: ${API_WORKERS:-2}  # Reduced for low-RAM
+
+      # Database (external managed — Neon/Supabase)
+      POSTGRES_HOST: ${POSTGRES_HOST:?Set external POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-codesensei}
+      POSTGRES_USER: ${POSTGRES_USER:-codesensei}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_POOL_SIZE: ${POSTGRES_POOL_SIZE:-5}
+      POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-require}
+
+      # Redis (external managed — Upstash)
+      REDIS_HOST: ${REDIS_HOST:?Set external REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_TLS: ${REDIS_TLS:-true}
+
+      # ChromaDB (in-memory, co-located)
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+
+      # AI Providers (FREE TIER)
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-huggingface}
+      GROQ_API_KEY: ${GROQ_API_KEY:?Set GROQ_API_KEY for free LLM}
+      GROQ_CHAT_MODEL: ${GROQ_CHAT_MODEL:-llama-3.3-70b-versatile}
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      HUGGINGFACE_EMBED_MODEL: ${HUGGINGFACE_EMBED_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-all-MiniLM-L6-v2}
+
+      # Observability
+      METRICS_ENABLED: "true"
+      METRICS_PORT: "9100"
+
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Low memory for free tier
+        reservations:
+          memory: 256M
+    networks:
+      - codesensei
+    depends_on:
+      chroma:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Worker (RQ background jobs)
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: ..
+      dockerfile: worker/Dockerfile
+    container_name: codesensei-worker
+    restart: unless-stopped
+    environment:
+      # Core
+      APP_ENV: ${APP_ENV:-production}
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?Set APP_SECRET_KEY in .env}
+
+      # Database
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-codesensei}
+      POSTGRES_USER: ${POSTGRES_USER:-codesensei}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-require}
+
+      # Redis
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_TLS: ${REDIS_TLS:-true}
+
+      # ChromaDB
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+
+      # AI Providers (FREE TIER)
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-huggingface}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_CHAT_MODEL: ${GROQ_CHAT_MODEL:-llama-3.3-70b-versatile}
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-all-MiniLM-L6-v2}
+
+      # Worker
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}  # Low for free tier
+      WORKER_JOB_TIMEOUT_SECONDS: "1800"
+      WORKER_CLONE_DIR: "/var/lib/codesensei/workspaces"
+
+    volumes:
+      - worker-workspaces:/var/lib/codesensei/workspaces
+    deploy:
+      resources:
+        limits:
+          memory: 768M  # Analysis needs more memory
+        reservations:
+          memory: 384M
+    networks:
+      - codesensei
+    depends_on:
+      chroma:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Frontend (React SPA via Nginx)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+        VITE_APP_NAME: ${VITE_APP_NAME:-CodeSensei}
+    container_name: codesensei-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+    networks:
+      - codesensei
+
+  # ---------------------------------------------------------------------------
+  # ChromaDB — Vector store (ephemeral, in-memory)
+  # ---------------------------------------------------------------------------
+  chroma:
+    image: chromadb/chroma:0.5.5
+    container_name: codesensei-chroma
+    restart: unless-stopped
+    environment:
+      CHROMA_SERVER_HOST: "0.0.0.0"
+      CHROMA_SERVER_HTTP_PORT: "8000"
+      # Ephemeral mode — embeddings regenerate on restart
+      IS_PERSISTENT: "false"
+      ANONYMIZED_TELEMETRY: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - codesensei
+
+# =============================================================================
+# Networks & Volumes
+# =============================================================================
+networks:
+  codesensei:
+    name: codesensei-free
+    driver: bridge
+
+volumes:
+  worker-workspaces:
+    name: codesensei-workspaces

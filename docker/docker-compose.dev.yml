@@ -1,0 +1,68 @@
+# ============================================================================
+# Development overlay
+#
+#   docker compose -f docker/docker-compose.yml \
+#                  -f docker/docker-compose.dev.yml --env-file .env up -d --build
+#
+# Adds bind-mounts so code changes reload without rebuilding the image,
+# exposes service ports for local debugging, and switches log levels.
+# ============================================================================
+
+name: codesensei
+
+services:
+  postgres:
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  backend:
+    # Replace the production CMD with uvicorn --reload.
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level debug
+    environment:
+      APP_ENV: development
+      APP_LOG_LEVEL: DEBUG
+      APP_DEBUG: "true"
+    volumes:
+      # Bind-mount the source so the reloader sees edits.
+      - ../backend/app:/app/app:rw
+      - ../backend/alembic:/app/alembic:rw
+      - workspaces:/var/lib/codesensei/workspaces
+    # Restart less aggressively in dev — failures should surface, not loop.
+    restart: "no"
+
+  worker:
+    environment:
+      APP_LOG_LEVEL: DEBUG
+    volumes:
+      - ../worker/worker:/opt/venv/lib/python3.12/site-packages/worker:rw
+      - ../analysis-engine/engine:/opt/venv/lib/python3.12/site-packages/engine:rw
+      - workspaces:/var/lib/codesensei/workspaces
+    restart: "no"
+
+  frontend:
+    # Use a Vite dev server instead of the prod nginx image so HMR works.
+    image: node:20-alpine
+    build: !reset null
+    working_dir: /app
+    command: sh -c "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 8080"
+    environment:
+      VITE_API_BASE_URL: http://localhost:${API_PORT:-8000}
+    volumes:
+      - ../frontend:/app:rw
+      - frontend-node-modules:/app/node_modules
+    depends_on:
+      backend: { condition: service_started }
+    healthcheck: !reset null
+    restart: "no"
+
+volumes:
+  frontend-node-modules:

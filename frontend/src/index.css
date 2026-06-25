@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ----------------------------------------------------------------------- */
+/* Theme tokens                                                            */
+/* Channels are space-separated RGB so Tailwind `<alpha-value>` works.      */
+/* Light = enterprise slate. `.dark` = Discord-inspired greys + blurple.    */
+/* ----------------------------------------------------------------------- */
+:root {
+  --ink-50: 246 247 249;
+  --ink-100: 236 238 242;
+  --ink-200: 212 216 224;
+  --ink-300: 170 177 191;
+  --ink-400: 125 133 151;
+  --ink-500: 90 98 117;
+  --ink-600: 68 75 93;
+  --ink-700: 54 60 75;
+  --ink-800: 34 39 58;
+  --ink-900: 22 25 41;
+  --ink-950: 12 14 26;
+
+  --accent-50: 238 240 251;
+  --accent-100: 224 227 247;
+  --accent-200: 193 199 240;
+  --accent-300: 154 163 232;
+  --accent-400: 120 130 227;
+  --accent-500: 88 101 242;   /* Discord blurple */
+  --accent-600: 71 82 196;
+  --accent-700: 60 69 165;
+  --accent-800: 49 56 136;
+  --accent-900: 42 49 112;
+
+  --surface: 255 255 255;
+  --surface-raised: 246 247 249;
+
+  color-scheme: light;
+}
+
+.dark {
+  /* Neutral scale inverts: low indices = dark canvas, high = light text. */
+  --ink-50: 30 31 34;     /* page canvas      (#1e1f22) */
+  --ink-100: 35 36 40;    /* hover / raised   (#232428) */
+  --ink-200: 46 48 53;    /* borders          (#2e3035) */
+  --ink-300: 63 66 72;
+  --ink-400: 128 132 142; /* muted text       (#80848e) */
+  --ink-500: 148 155 164; /* secondary text   (#949ba4) */
+  --ink-600: 181 186 193;
+  --ink-700: 219 222 225; /* primary text     (#dbdee1) */
+  --ink-800: 227 229 232;
+  --ink-900: 242 243 245;
+  --ink-950: 255 255 255;
+
+  /* Blurple core stays put; tint ends flip so active chips stay readable.
+     accent-500/600 remain the saturated brand blue (used as *button*
+     backgrounds with white text), while 700–900 — which the app uses as
+     *foreground* text on the light accent-50 chip — flip to light so they
+     stay legible on the now-dark accent-50 surface. */
+  --accent-50: 35 37 68;   /* active-item background */
+  --accent-100: 47 51 88;  /* avatar / badge background */
+  --accent-200: 64 70 120; /* chip borders on dark */
+  --accent-700: 197 203 245; /* active-item text */
+  --accent-800: 213 218 248;
+  --accent-900: 228 231 251;
+
+  --surface: 43 45 49;        /* panels / cards   (#2b2d31) */
+  --surface-raised: 49 51 56; /* inputs / raised  (#313338) */
+
+  color-scheme: dark;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Global resets + opinionated defaults                                    */
+/* ----------------------------------------------------------------------- */
+@layer base {
+  html, body, #root {
+    @apply h-full;
+  }
+  body {
+    @apply bg-ink-50 font-sans text-ink-800;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+  /* Modern scrollbars on Chromium-family browsers. */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { @apply bg-ink-300 rounded; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-ink-400; }
+  ::-webkit-scrollbar-track { @apply bg-ink-100; }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Utility component classes                                                */
+/* ----------------------------------------------------------------------- */
+@layer components {
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface;
+  }
+  .surface {
+    @apply bg-surface border border-ink-200 rounded-lg shadow-card;
+  }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Cytoscape container fill                                                 */
+/* ----------------------------------------------------------------------- */
+/* Only the cytoscape canvas container should fill the host. Overlay UI
+   (controls, legend) is marked with [data-graph-overlay] and excluded so it
+   keeps its intrinsic size instead of stretching over the whole graph. */
+.cytoscape-host > div:not([data-graph-overlay]) {
+  width: 100% !important;
+  height: 100% !important;
+}

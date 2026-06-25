@@ -1,0 +1,129 @@
+# ============================================================================
+# CodeSensei — alerting & recording rules
+#
+# Recording rules pre-aggregate the panels Grafana reads on every refresh,
+# so the dashboard stays snappy with hundreds of series. Alert rules surface
+# SLO breaches and infrastructure exhaustion.
+# ============================================================================
+
+groups:
+  # --------------------------------------------------------------------------
+  - name: backend.recording
+    interval: 30s
+    rules:
+      - record: backend:http_request_duration_seconds:p95_5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, path) (
+              rate(http_request_duration_seconds_bucket{service="backend"}[5m])
+            )
+          )
+
+      - record: backend:http_requests:rate1m
+        expr: sum by (path, status) (rate(http_requests_total{service="backend"}[1m]))
+
+      - record: backend:http_5xx_ratio:rate5m
+        expr: |
+          sum(rate(http_requests_total{service="backend",status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_requests_total{service="backend"}[5m])), 1)
+
+  # --------------------------------------------------------------------------
+  - name: worker.recording
+    interval: 30s
+    rules:
+      - record: worker:analysis_jobs:rate5m
+        expr: sum by (status) (rate(worker_analysis_jobs_processed_total[5m]))
+
+      - record: worker:analysis_job_duration:p95_30m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(worker_analysis_job_duration_seconds_bucket[30m]))
+          )
+
+  # --------------------------------------------------------------------------
+  - name: backend.alerts
+    rules:
+      - alert: BackendHighErrorRate
+        expr: backend:http_5xx_ratio:rate5m > 0.05
+        for: 5m
+        labels: { severity: critical, service: backend }
+        annotations:
+          summary: ">5% of backend responses are 5xx"
+          description: |
+            For the past 5 minutes more than 5% of backend responses
+            returned a 5xx status. Check `/metrics`, structured logs, and
+            recent deploys.
+
+      - alert: BackendHighLatency
+        expr: backend:http_request_duration_seconds:p95_5m > 1.5
+        for: 10m
+        labels: { severity: warning, service: backend }
+        annotations:
+          summary: "Backend p95 latency >1.5s"
+          description: |
+            p95 request latency exceeded 1.5 seconds across paths over the
+            last 10 minutes. Likely culprits: cold caches, DB pool
+            saturation, or slow third-party calls.
+
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 2m
+        labels: { severity: critical, service: backend }
+        annotations:
+          summary: "Backend service is unreachable"
+
+  # --------------------------------------------------------------------------
+  - name: worker.alerts
+    rules:
+      - alert: AnalysisJobFailureRateHigh
+        expr: |
+          sum(rate(worker_analysis_jobs_processed_total{status="failed"}[15m]))
+          /
+          clamp_min(sum(rate(worker_analysis_jobs_processed_total[15m])), 1)
+          > 0.20
+        for: 15m
+        labels: { severity: warning, service: worker }
+        annotations:
+          summary: ">20% of analysis jobs failed in the last 15m"
+
+      - alert: AnalysisQueueBacklog
+        expr: worker_jobs_in_flight > 0 and on() absent_over_time(worker_analysis_jobs_processed_total[10m])
+        for: 10m
+        labels: { severity: warning, service: worker }
+        annotations:
+          summary: "Worker has in-flight jobs but no completions in 10m"
+
+      - alert: WorkerDown
+        expr: up{job="worker"} == 0
+        for: 2m
+        labels: { severity: critical, service: worker }
+        annotations:
+          summary: "Worker is not exposing metrics"
+
+  # --------------------------------------------------------------------------
+  - name: infrastructure.alerts
+    rules:
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels: { severity: critical, service: postgres }
+        annotations:
+          summary: "Postgres exporter unreachable"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels: { severity: critical, service: redis }
+        annotations:
+          summary: "Redis exporter unreachable"
+
+      - alert: NodeMemoryHigh
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.90
+        for: 10m
+        labels: { severity: warning, service: node }
+        annotations:
+          summary: "Host memory >90% utilised for 10 minutes"

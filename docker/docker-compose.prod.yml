@@ -1,0 +1,81 @@
+# ============================================================================
+# Production hardening overlay
+#
+#   docker compose -f docker/docker-compose.yml \
+#                  -f docker/docker-compose.prod.yml --env-file .env up -d
+#
+# - Read-only root filesystems where the runtime allows.
+# - Drops every Linux capability, then re-adds the few that are needed.
+# - no-new-privileges blocks setuid escalation.
+# - Resource limits keep one runaway service from starving the others.
+# ============================================================================
+
+name: codesensei
+
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  read_only: true
+
+services:
+  postgres:
+    <<: *hardening
+    read_only: false  # Postgres needs to write to /var/lib/postgresql/data
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1G }
+
+  redis:
+    <<: *hardening
+    read_only: false  # Redis writes RDB snapshots to /data
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 768M }
+
+  chroma:
+    <<: *hardening
+    read_only: false  # Persists embeddings under /chroma
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2G }
+
+  ollama:
+    # Ollama needs to load model weights into a writable cache and
+    # benefit from CAP_SYS_NICE for thread scheduling — leave it alone.
+    deploy:
+      resources:
+        limits: { cpus: "4.0", memory: 8G }
+
+  backend:
+    <<: *hardening
+    # FastAPI / uvicorn don't need to write to disk in production.
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1G }
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 60s
+
+  worker:
+    <<: *hardening
+    read_only: false  # Worker clones repos under /var/lib/codesensei/workspaces
+    deploy:
+      resources:
+        limits: { cpus: "4.0", memory: 2G }
+      replicas: ${WORKER_REPLICAS:-2}
+
+  frontend:
+    <<: *hardening
+    # Nginx writes a pid + temp files under /var.
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }

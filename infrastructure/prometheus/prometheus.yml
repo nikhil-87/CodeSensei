@@ -1,0 +1,67 @@
+# ============================================================================
+# Prometheus scrape configuration
+#
+# - 15s default interval matches Grafana's typical refresh rate.
+# - Scrape jobs target the docker network names from docker-compose.yml.
+# - Self-scrape on :9090 keeps Prometheus health visible from itself.
+# ============================================================================
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    platform: codesensei
+    env: ${APP_ENV:-development}
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers: []   # Single-tenant install — alerts surface in Grafana.
+
+scrape_configs:
+  # --------------------------------------------------------------------------
+  # Self-scrape — Prometheus exposes its own /metrics on 9090.
+  # --------------------------------------------------------------------------
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels: { service: prometheus }
+
+  # --------------------------------------------------------------------------
+  # Application services
+  # --------------------------------------------------------------------------
+  - job_name: backend
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend:8000"]
+        labels: { service: backend, tier: application }
+
+  - job_name: worker
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["worker:9101"]
+        labels: { service: worker, tier: application }
+
+  # --------------------------------------------------------------------------
+  # Infrastructure exporters
+  # --------------------------------------------------------------------------
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels: { service: redis, tier: infrastructure }
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels: { service: postgres, tier: infrastructure }
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels: { service: node, tier: infrastructure }
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels: { service: cadvisor, tier: infrastructure }

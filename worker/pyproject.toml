@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codesensei-worker"
+version = "0.1.0"
+description = "RQ worker that drives the analysis engine and AI indexing pipeline."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "rq==1.16.2",
+    "redis==5.0.8",
+    "sqlalchemy==2.0.35",
+    "psycopg2-binary==2.9.9",
+    "pydantic==2.9.2",
+    "pydantic-settings==2.5.2",
+    "structlog==24.4.0",
+    "tenacity==9.0.0",
+    "prometheus-client==0.21.0",
+    # Engine + AI sub-package
+    "codesensei-engine",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.3",
+    "pytest-mock==3.14.0",
+    "ruff==0.6.9",
+    "mypy==1.11.2",
+    "fakeredis==2.24.1",
+]
+
+[project.scripts]
+codesensei-worker = "worker.app.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["worker*"]
+exclude = ["tests*"]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+ignore = ["E501"]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["rq.*", "fakeredis.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
