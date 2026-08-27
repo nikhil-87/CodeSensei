@@ -168,9 +168,9 @@ The platform includes a comprehensive, code-grounded technical vault located in 
 | **07** | [User Flows](vault/07-user-flows.md) | 5 end-to-end journey maps with verified Mermaid sequence diagrams |
 | **08** | [Current System Architecture](vault/08-current-system-architecture.md) | In-depth C4 container diagrams, component boundaries, and failure domains |
 | **09** | [Execution & Data Flows](vault/09-execution-and-data-flows.md) | Step-by-step pipeline traces, two-phase RAG transactions, and reaper flow |
-| **10** | [Technology Stack Decisions](vault/10-technology-stack-decisions.md) | Architecture Decision Records (ADRs) with explicit trade-offs and alternatives |
+| **10** | [Technology Stack](vault/10-technology-stack.md) | Architecture Decision Records (ADRs) with explicit trade-offs and alternatives |
 | **11** | [Engineering Problems & Solutions](vault/11-engineering-problems-and-solutions.md) | Algorithmic deep-dives: Tarjan's SCC, BFS impact analysis, stuck-job recovery |
-| **12** | [Data Storage & Database Design](vault/12-data-storage-and-database-design.md) | PostgreSQL indexes, ChromaDB vector partitioning, and Redis key schemas |
+| **12** | [Reliability & Failure Handling](vault/12-reliability-and-failure-handling.md) | PostgreSQL indexes, failure modes, timeouts, and stuck-job reaping |
 | **13** | [Security Architecture](vault/13-security-architecture.md) | SSRF prevention, path traversal defense, secret scanning, and rate limiting |
 | **14** | [Performance & Optimization](vault/14-performance.md) | Caching strategies, ThreadPoolExecutor parallel parsing, and batch inserts |
 | **15** | [Scaling Architecture](vault/15-scaling-architecture.md) | Stage 0 (Free tier) to Stage 3 (Enterprise global 10M+ users) roadmap |
@@ -180,7 +180,7 @@ The platform includes a comprehensive, code-grounded technical vault located in 
 | **19** | [Observability](vault/19-observability.md) | Prometheus metric inventory, Grafana dashboards, and structlog JSON logs |
 | **20** | [Production Readiness Review](vault/20-production-readiness-review.md) | Reliability, disaster recovery, security, and operational readiness checklist |
 | **21** | [Interview Preparation Guide](vault/21-interview-preparation-guide.md) | Senior/Staff SWE interview defense guide, trade-offs, and behavioral stories |
-| **22** | [Resume Bullets & Accomplishments](vault/22-resume-bullets-and-accomplishments.md) | High-impact, verified STAR accomplishment bullets for engineering resumes |
+| **22** | [Resume & Portfolio Fact Sheet](vault/22-resume-and-portfolio-fact-sheet.md) | High-impact, verified STAR accomplishment bullets for engineering resumes |
 | **23** | [Do Not Claim (Boundary Guide)](vault/23-do-not-claim.md) | Anti-hallucination boundaries: what is implemented vs. what is proposed |
 | **24** | [Documentation Accuracy Audit](vault/24-documentation-accuracy-audit.md) | Systematic audit comparing documentation claims against actual code |
 | **—** | [PROJECT_SOURCE_OF_TRUTH.md](vault/PROJECT_SOURCE_OF_TRUTH.md) | Single master technical reference document for AI and engineering audits |

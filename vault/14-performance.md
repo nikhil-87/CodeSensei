@@ -1,7 +1,7 @@
 # 14. Performance Engineering & Latency Profile
 
 > **Status:** Codebase-grounded analysis of database indexing, caching strategies, concurrency controls, and latency bottlenecks.  
-> **Source Verification:** [backend/app/core/cache.py](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/backend/app/core/cache.py), [analysis-engine/engine/orchestrator.py](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/analysis-engine/engine/orchestrator.py), [backend/app/models/](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/backend/app/models/).
+> **Source Verification:** [backend/app/cache/redis_cache.py](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/backend/app/cache/redis_cache.py), [analysis-engine/engine/orchestrator.py](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/analysis-engine/engine/orchestrator.py), [backend/app/models/](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/backend/app/models/).
 
 ---
 

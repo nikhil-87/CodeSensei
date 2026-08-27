@@ -1,7 +1,7 @@
 # 19. Observability & Telemetry Architecture
 
 > **Status:** Codebase-grounded telemetry reference based on structlog, Prometheus metrics, and health probes.  
-> **Source Verification:** [backend/app/core/logging.py](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/backend/app/core/logging.py), [backend/app/core/metrics.py](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/backend/app/core/metrics.py), [docker/docker-compose.observability.yml](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/docker/docker-compose.observability.yml).
+> **Source Verification:** [backend/app/core/logging.py](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/backend/app/core/logging.py), [backend/app/core/middleware.py](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/backend/app/core/middleware.py), [docker/docker-compose.observability.yml](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/docker/docker-compose.observability.yml).
 
 ---
 
