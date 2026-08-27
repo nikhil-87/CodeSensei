@@ -103,14 +103,14 @@ and the streaming endpoints introduced in
 
 ```mermaid
 flowchart LR
-  user([User]) -->|HTTPS| nginx[nginx :8080<br/>SPA static + /api proxy]
-  nginx -->|/| dist[dist/index.html<br/>+ vendor chunks]
-  nginx -->|/api/*| backend[FastAPI :8000]
-  dist -.->|TanStack Query<br/>JSON| backend
-  dist -.->|fetch + SSE<br/>POST /ai/chat<br/>GET /events| backend
+  user([User]) -->|HTTPS| nginx[Nginx on port 8080]
+  nginx -->|/| dist[dist index.html]
+  nginx -->|/api/*| backend[FastAPI on port 8000]
+  dist -.->|TanStack Query JSON| backend
+  dist -.->|fetch and SSE| backend
   backend --> postgres[(Postgres)]
-  backend --> redis[(Redis<br/>RQ queue)]
-  backend --> chroma[(Chroma<br/>vectors)]
+  backend --> redis[(Redis Queue)]
+  backend --> chroma[(Chroma Vectors)]
   redis -.->|jobs| worker[RQ worker]
   worker -->|progress events| backend
 ```

@@ -9,26 +9,26 @@
 
 ```mermaid
 flowchart TD
-    Login["/login<br/>(LoginPage)"] -->|GitHub OAuth / Dev Login| Dashboard["/<br/>(RepositoryListPage)"]
+    Login["/login (LoginPage)"] -->|GitHub OAuth or Dev Login| Dashboard["/ (RepositoryListPage)"]
     
-    Dashboard -->|Submit Repo URL| SubmitModal["Submit Modal<br/>(POST /repositories)"]
-    SubmitModal -->|Redirect to Events| RepoRoot["/repos/:id/overview<br/>(RepositoryDashboardPage)"]
+    Dashboard -->|Submit Repo URL| SubmitModal["Submit Modal (POST /repositories)"]
+    SubmitModal -->|Redirect to Events| RepoRoot["/repos/:id/overview (RepositoryDashboardPage)"]
     
-    RepoRoot --> NavGraph["/repos/:id/graph<br/>(DependencyGraphPage)"]
-    RepoRoot --> NavComp["/repos/:id/complexity<br/>(ComplexityPage)"]
-    RepoRoot --> NavDead["/repos/:id/dead-code<br/>(DeadCodePage)"]
-    RepoRoot --> NavArch["/repos/:id/architecture<br/>(ArchitecturePage)"]
-    RepoRoot --> NavImp["/repos/:id/impact<br/>(ImpactAnalysisPage)"]
-    RepoRoot --> NavChat["/repos/:id/chat<br/>(AIAssistantPage)"]
+    RepoRoot --> NavGraph["/repos/:id/graph (DependencyGraphPage)"]
+    RepoRoot --> NavComp["/repos/:id/complexity (ComplexityPage)"]
+    RepoRoot --> NavDead["/repos/:id/dead-code (DeadCodePage)"]
+    RepoRoot --> NavArch["/repos/:id/architecture (ArchitecturePage)"]
+    RepoRoot --> NavImp["/repos/:id/impact (ImpactAnalysisPage)"]
+    RepoRoot --> NavChat["/repos/:id/chat (AIAssistantPage)"]
     
-    NavGraph -->|Select Node -> Ask AI| CrossContext["nodeContextStore<br/>(Queues Context Chip)"]
-    NavArch -->|Select Layer -> Ask AI| CrossContext
+    NavGraph -->|Select Node to Ask AI| CrossContext["nodeContextStore (Queues Context Chip)"]
+    NavArch -->|Select Layer to Ask AI| CrossContext
     CrossContext --> NavChat
 
-    Dashboard --> Discover["/discover<br/>(DiscoverPage - Public)"]
-    Discover --> RepoAnalyses["/discover/r?url=...<br/>(RepositoryAnalysesPage)"]
-    Discover --> UserProfile["/u/:username<br/>(ProfilePage - Public)"]
-    Dashboard --> Starred["/stars<br/>(StarredPage)"]
+    Dashboard --> Discover["/discover (DiscoverPage - Public)"]
+    Discover --> RepoAnalyses["/discover/r?url=... (RepositoryAnalysesPage)"]
+    Discover --> UserProfile["/u/:username (ProfilePage - Public)"]
+    Dashboard --> Starred["/stars (StarredPage)"]
 ```
 
 ---
@@ -56,36 +56,36 @@ sequenceDiagram
     participant Engine as Analysis Engine
     participant DB as PostgreSQL
 
-    User->>FE: Paste GitHub URL ("https://github.com/owner/repo")
-    FE->>API: POST /api/v1/repositories {url, branch: null}
-    API->>API: validate_github_url (SSRF check)
-    API->>DB: Insert Repository (PENDING) + AnalysisJob (QUEUED)
-    API->>Redis: Enqueue analyze_repository(repo_id, job_id)
-    API-->>FE: 202 Accepted {job_id, status: "queued"}
+    User->>FE: Paste GitHub URL
+    FE->>API: POST /api/v1/repositories
+    API->>API: validate_github_url SSRF check
+    API->>DB: Insert Repository pending and AnalysisJob queued
+    API->>Redis: Enqueue analyze_repository
+    API-->>FE: 202 Accepted with job_id
     FE->>FE: Navigate to /repos/:id/overview
     FE->>API: GET /api/v1/repositories/:id/events (SSE)
 
     Worker->>Redis: Dequeue job
-    Worker->>DB: Update job RUNNING + repo ANALYZING
-    Worker->>API: (SSE emits event: "running", progress: 0)
-    API-->>FE: SSE event: "running"
+    Worker->>DB: Update job running and repo analyzing
+    Worker->>API: Emit SSE event running
+    API-->>FE: SSE event running
 
-    Worker->>Worker: Git shallow clone (depth=1)
-    Worker->>API: (SSE emits event: "progress", progress: 10, "clone complete")
-    API-->>FE: SSE event: "progress" (10%)
+    Worker->>Worker: Git shallow clone depth=1
+    Worker->>API: Emit SSE event progress 10 percent
+    API-->>FE: SSE event progress (10 percent)
 
-    Worker->>Engine: Parse files concurrently (ThreadPoolExecutor)
+    Worker->>Engine: Parse files concurrently with ThreadPoolExecutor
     loop Every N files
-        Worker->>DB: Update job.heartbeat_at & progress
-        API-->>FE: SSE event: "progress" (20%..60%)
+        Worker->>DB: Update job heartbeat_at and progress
+        API-->>FE: SSE event progress (20 to 60 percent)
     end
 
-    Worker->>Engine: Build Graph, Detect Cycles (Tarjan's), Metrics, Dead Code
-    Worker->>DB: Atomic replace: SourceFiles, Symbols, Dependencies, Metrics
-    Worker->>Worker: Symbol-aware chunking & ChromaDB vector upsert
-    Worker->>DB: Update job SUCCEEDED + repo READY
-    API-->>FE: SSE event: "succeeded" (100%)
-    FE->>FE: Invalidate React Query caches; render Dashboard
+    Worker->>Engine: Build Graph, Detect Cycles with Tarjan SCC, Metrics, Dead Code
+    Worker->>DB: Atomic replace SourceFiles, Symbols, Dependencies, Metrics
+    Worker->>Worker: Symbol-aware chunking and ChromaDB vector upsert
+    Worker->>DB: Update job succeeded and repo ready
+    API-->>FE: SSE event succeeded (100 percent)
+    FE->>FE: Invalidate React Query caches and render Dashboard
 ```
 
 ---
@@ -126,37 +126,37 @@ sequenceDiagram
     participant Store as nodeContextStore
     participant API as FastAPI Backend
     participant Chroma as ChromaDB
-    participant LLM as Groq / Ollama
+    participant LLM as Groq or Ollama
     participant DB as PostgreSQL
 
     Note over User,ChatUI: Auto-consume cross-feature context
     ChatUI->>Store: consumePendingPrompt()
-    Store-->>ChatUI: "Explain what auth.py does..." + AttachedFile[auth.py]
+    Store-->>ChatUI: Prompt text and AttachedFile
     
-    User->>ChatUI: Click Send (or Auto-Send)
-    ChatUI->>API: POST /api/v1/chat-sessions/:sessionId/chat<br/>{question, attached: [{path: "src/core/auth.py"}]}
+    User->>ChatUI: Click Send
+    ChatUI->>API: POST /api/v1/chat-sessions/{sessionId}/chat with question and attached files
     
     Note over API,DB: Transaction 1: Save User Turn
-    API->>DB: Load chat_session (verify ownership)
+    API->>DB: Load chat_session and verify ownership
     API->>DB: Load last 20 messages history
-    API->>DB: Insert ChatMessage (role: "user", attached_context: [...])
+    API->>DB: Insert ChatMessage with role=user
     API->>DB: Commit Tx1
     
-    Note over API,LLM: Retrieval & Token Streaming
-    API->>Chroma: Vector search (query embedding) + Exact filter on attached paths
-    Chroma-->>API: Top-k code chunks (content, line ranges, symbols)
-    API->>API: Build system prompt with citations & history
+    Note over API,LLM: Retrieval and Token Streaming
+    API->>Chroma: Vector search query embedding and exact filter on attached paths
+    Chroma-->>API: Top-k code chunks with content, line ranges, symbols
+    API->>API: Build system prompt with citations and history
     API->>LLM: Stream chat completion
     
     loop Stream Tokens
-        LLM-->>API: chunk
-        API-->>ChatUI: SSE event: "token" {content: "..."}
+        LLM-->>API: Token chunks
+        API-->>ChatUI: SSE event: token
     end
-    API-->>ChatUI: SSE event: "citations" {citations: [...]}
-    API-->>ChatUI: SSE event: "done"
+    API-->>ChatUI: SSE event: citations
+    API-->>ChatUI: SSE event: done
     
     Note over API,DB: Transaction 2: Save Assistant Turn
-    API->>DB: Insert ChatMessage (role: "assistant", citations: [...])
+    API->>DB: Insert ChatMessage with role=assistant and citations
     API->>DB: Commit Tx2
 ```
 

@@ -21,24 +21,25 @@
 flowchart TB
   user([User])
   subgraph Edge
-    fe[Frontend SPA<br/>nginx + React build]
+    fe[Frontend SPA: Nginx and React]
   end
   subgraph Application
-    be[Backend API<br/>FastAPI / uvicorn]
-    wk[Worker<br/>RQ consumer]
+    be[Backend API: FastAPI and Uvicorn]
+    wk[Worker: RQ Consumer]
   end
   subgraph Stateful
     pg[(PostgreSQL)]
-    rd[(Redis: queue + cache)]
+    rd[(Redis: Queue and Cache)]
     ch[(ChromaDB)]
   end
   subgraph External AI
     groq[Groq LLM]
-    hf[HuggingFace embeddings]
+    hf[HuggingFace Embeddings]
   end
-  gh[GitHub: OAuth + git clone]
+  gh[GitHub: OAuth and Git Clone]
 
-  user --> fe --> be
+  user --> fe
+  fe --> be
   be -->|OAuth| gh
   be --> pg
   be --> rd

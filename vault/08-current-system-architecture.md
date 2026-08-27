@@ -10,50 +10,50 @@
 ```mermaid
 flowchart TB
     subgraph Client ["Client Tier"]
-        Browser["Modern Browser<br/>(React 18 SPA)"]
+        Browser["Modern Browser (React 18 SPA)"]
     end
 
-    subgraph Ingress ["Edge / Ingress Tier"]
-        Nginx["Nginx 1.27 (:8080)<br/>Static Asset Server + Reverse Proxy"]
+    subgraph Ingress ["Edge and Ingress Tier"]
+        Nginx["Nginx 1.27 on port 8080"]
     end
 
     subgraph AppTier ["Application Tier"]
-        API["FastAPI API Server (:8000)<br/>Async Uvicorn, Lifespan Hooks, Reaper"]
-        Worker["RQ Analysis Worker<br/>Burst-Mode Job Consumer"]
-        Engine[["Analysis Engine<br/>AST / Tree-sitter / RAG Core"]]
+        API["FastAPI API Server on port 8000"]
+        Worker["RQ Analysis Worker"]
+        Engine["Analysis Engine Core Library"]
     end
 
     subgraph DataTier ["Data Persistence Tier"]
-        PG[("PostgreSQL 16<br/>(Neon / Local)<br/>System of Record")]
-        Redis[("Redis 7<br/>(Upstash / Local)<br/>Queue & Response Cache")]
-        Chroma[("ChromaDB 0.5.5 (:8000)<br/>Vector Database")]
-        Storage[("Local Filesystem Volume<br/>/var/lib/codesensei/workspaces")]
+        PG[("PostgreSQL 16 System of Record")]
+        Redis[("Redis 7 Queue and Cache")]
+        Chroma[("ChromaDB 0.5.5 Vector Database")]
+        Storage[("Local Filesystem Volume")]
     end
 
-    subgraph ExternalTier ["External AI & Cloud Services"]
-        GitHub["GitHub API / Git HTTPS<br/>OAuth 2.0 & Clone Target"]
-        Groq["Groq Cloud LLM API<br/>Llama 3.3 70B Versatile"]
-        HF["HuggingFace Inference API<br/>all-MiniLM-L6-v2 Embeddings"]
-        Ollama["Ollama Local Fallback<br/>Chat & Embedding Models"]
+    subgraph ExternalTier ["External AI and Cloud Services"]
+        GitHub["GitHub API and Git HTTPS"]
+        Groq["Groq Cloud LLM API"]
+        HF["HuggingFace Inference API"]
+        Ollama["Ollama Local Fallback"]
     end
 
-    Browser -->|HTTPS :8080| Nginx
+    Browser -->|HTTPS 8080| Nginx
     Nginx -->|Static Bundles| Browser
-    Nginx -->|Proxy Pass /api/v1/*| API
+    Nginx -->|Proxy Pass /api/v1| API
 
     API -->|OAuth Handshake| GitHub
-    API -->|Async SQL (asyncpg)| PG
-    API -->|Enqueue & Cache Reads| Redis
-    API -->|Vector Query (HTTP)| Chroma
-    API -->|Streaming Chat (HTTPS)| Groq
+    API -->|Async SQL| PG
+    API -->|Enqueue and Cache Reads| Redis
+    API -->|Vector Query| Chroma
+    API -->|Streaming Chat| Groq
     API -.->|Local Streaming| Ollama
 
     Redis -->|Dequeue Jobs| Worker
     Worker -->|Shallow Git Clone| GitHub
     Worker -->|Write Clones| Storage
-    Worker -->|Invoke Parsing & Graphs| Engine
-    Worker -->|Heartbeats & Batch Insert| PG
-    Worker -->|Upsert Chunks (HTTP)| Chroma
+    Worker -->|Invoke Parsing and Graphs| Engine
+    Worker -->|Heartbeats and Batch Insert| PG
+    Worker -->|Upsert Chunks| Chroma
     Worker -->|Inference Embeddings| HF
     Worker -.->|Local Embeddings| Ollama
 ```

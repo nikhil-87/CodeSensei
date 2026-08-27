@@ -134,23 +134,23 @@ services around three stateful stores.
 
 ```mermaid
 flowchart TB
-  user([User / Browser])
+  user([User or Browser])
   subgraph Edge
-    fe[Frontend SPA<br/>React + Vite + nginx]
+    fe[Frontend SPA: React, Vite, Nginx]
   end
   subgraph Application
-    be[Backend API<br/>FastAPI / uvicorn]
-    wk[Worker<br/>RQ consumer]
+    be[Backend API: FastAPI and Uvicorn]
+    wk[Worker: RQ Consumer]
   end
   subgraph Stateful
-    pg[(PostgreSQL<br/>system of record)]
-    rd[(Redis<br/>queue + cache)]
-    ch[(ChromaDB<br/>vector store)]
+    pg[(PostgreSQL: System of Record)]
+    rd[(Redis: Queue and Cache)]
+    ch[(ChromaDB: Vector Store)]
   end
   subgraph External
     groq[Groq LLM]
-    hf[HuggingFace embeddings]
-    gh[GitHub OAuth + git clone]
+    hf[HuggingFace Embeddings]
+    gh[GitHub OAuth and Clone]
   end
 
   user -->|HTTPS| fe
@@ -235,7 +235,7 @@ sequenceDiagram
   participant LLM as Groq/Ollama
   FE->>BE: POST /chat-sessions/{id}/chat {question, attached_paths} (SSE)
   BE->>PG: ownership check; load history; save user turn
-  BE->>CH: embed question -> top-k chunks (+ tagged files guaranteed)
+  BE->>CH: embed question to top-k chunks (+ tagged files guaranteed)
   BE->>LLM: prompt(system + retrieved context + history)
   LLM-->>BE: token stream
   BE-->>FE: SSE token...
@@ -258,14 +258,14 @@ sequenceDiagram
   participant GH as GitHub
   U->>FE: Click "Sign in"
   FE->>BE: GET /auth/github/login
-  BE-->>U: 302 -> GitHub consent (anti-CSRF state cookie)
+  BE-->>U: 302 Redirect to GitHub consent (anti-CSRF state cookie)
   U->>GH: Approve
   GH-->>BE: GET /auth/github/callback?code&state
-  BE->>BE: verify state; exchange code -> token
+  BE->>BE: verify state; exchange code to token
   BE->>GH: GET user profile
   BE->>BE: upsert user; mint HS256 JWT
-  BE-->>U: Set httpOnly cookie codesensei_session; 302 -> frontend
-  FE->>BE: GET /auth/me -> user
+  BE-->>U: Set httpOnly cookie codesensei_session; 302 to frontend
+  FE->>BE: GET /auth/me to fetch user
 ```
 
 - **Authentication:** GitHub OAuth 2.0 (Authorization-Code) → stateless **HS256 JWT** in an

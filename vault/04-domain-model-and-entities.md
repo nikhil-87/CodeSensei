@@ -9,150 +9,150 @@
 
 ```mermaid
 erDiagram
-    USERS ||--o{ REPOSITORIES : "owns (0..N)"
-    USERS ||--o{ CHAT_SESSIONS : "participates_in (0..N)"
-    USERS ||--o{ STARS : "stars (0..N)"
+    USERS ||--o{ REPOSITORIES : owns
+    USERS ||--o{ CHAT_SESSIONS : participates_in
+    USERS ||--o{ STARS : stars
 
-    REPOSITORIES ||--o{ ANALYSIS_JOBS : "triggers (0..N)"
-    REPOSITORIES ||--o{ SOURCE_FILES : "contains (0..N)"
-    REPOSITORIES ||--o{ CHAT_SESSIONS : "scoped_to (0..N)"
-    REPOSITORIES ||--o{ STARS : "starred_by (0..N)"
+    REPOSITORIES ||--o{ ANALYSIS_JOBS : triggers
+    REPOSITORIES ||--o{ SOURCE_FILES : contains
+    REPOSITORIES ||--o{ CHAT_SESSIONS : scoped_to
+    REPOSITORIES ||--o{ STARS : starred_by
 
-    SOURCE_FILES ||--o{ SYMBOLS : "declares (0..N)"
-    SOURCE_FILES ||--o| METRICS : "has_metrics (1..1)"
-    SOURCE_FILES ||--o{ DEPENDENCIES : "outgoing_deps (from_file)"
-    SOURCE_FILES ||--o{ DEPENDENCIES : "incoming_deps (to_file)"
+    SOURCE_FILES ||--o{ SYMBOLS : declares
+    SOURCE_FILES ||--o| METRICS : has_metrics
+    SOURCE_FILES ||--o{ DEPENDENCIES : outgoing_deps
+    SOURCE_FILES ||--o{ DEPENDENCIES : incoming_deps
 
-    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : "contains (0..N)"
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
 
     USERS {
         uuid id PK
-        bigint github_id UK "Stable GitHub account ID"
+        bigint github_id "Unique GitHub account ID"
         varchar username "Indexed username handle"
         varchar display_name "Nullable display name"
         varchar email "Nullable user email"
-        varchar avatar_url "Nullable GitHub avatar link"
+        varchar avatar_url "Nullable avatar link"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     REPOSITORIES {
         uuid id PK
-        uuid owner_id FK "References users.id (CASCADE)"
-        boolean is_public "Default false; controls anonymous access"
+        uuid owner_id FK "References users.id"
+        boolean is_public "Controls anonymous access"
         varchar url "GitHub repository URL"
         varchar branch "Nullable git branch"
         varchar default_branch "Nullable default branch"
         varchar name "Repo directory name"
         varchar owner "GitHub organization or user"
-        enum status "pending | cloning | analyzing | ready | failed"
+        varchar status "pending, cloning, analyzing, ready, failed"
         varchar error_message "Nullable failure detail"
-        timestamptz analyzed_at "Timestamp of last good analysis"
-        varchar commit_hash "Analyzed Git commit SHA"
-        integer analysis_version "Logic version stamp"
-        integer pipeline_version "Orchestration version stamp"
-        integer schema_version "Persisted shape version stamp"
-        varchar embedding_model "Provider:model vector signature"
+        timestamptz analyzed_at "Timestamp of last analysis"
+        varchar commit_hash "Analyzed commit SHA"
+        integer analysis_version "Logic version"
+        integer pipeline_version "Orchestration version"
+        integer schema_version "Persisted shape version"
+        varchar embedding_model "Model signature"
         integer file_count "Denormalized file count"
         integer total_lines "Denormalized line count"
-        varchar languages "Comma-separated top language breakdown"
-        integer star_count "Denormalized total stars count"
+        varchar languages "Top languages breakdown"
+        integer star_count "Denormalized star count"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     ANALYSIS_JOBS {
         uuid id PK
-        uuid repository_id FK "References repositories.id (CASCADE)"
-        enum status "queued | running | succeeded | failed | cancelled"
+        uuid repository_id FK "References repositories.id"
+        varchar status "queued, running, succeeded, failed, cancelled"
         varchar rq_job_id "Redis Queue job ID"
-        varchar error "Nullable error backtrace"
+        varchar error "Nullable error detail"
         timestamptz queued_at "Enqueue timestamp"
-        timestamptz started_at "Worker pick-up timestamp"
-        timestamptz completed_at "Terminal state timestamp"
-        timestamptz heartbeat_at "Worker liveness timestamp"
-        integer progress "Percentage 0..100"
-        varchar progress_message "Current progress message"
+        timestamptz started_at "Worker start timestamp"
+        timestamptz completed_at "Terminal timestamp"
+        timestamptz heartbeat_at "Worker liveness heartbeat"
+        integer progress "Percentage 0 to 100"
+        varchar progress_message "Progress status text"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     SOURCE_FILES {
         uuid id PK
-        uuid repository_id FK "References repositories.id (CASCADE)"
-        varchar path "Relative POSIX file path"
-        varchar language "Detected language string"
-        integer line_count "Total lines in file"
+        uuid repository_id FK "References repositories.id"
+        varchar path "Relative file path"
+        varchar language "Detected language"
+        integer line_count "Total lines"
         bigint size_bytes "File size in bytes"
-        varchar sha256 "SHA-256 content hash"
+        varchar sha256 "SHA-256 hash"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     SYMBOLS {
         uuid id PK
-        uuid file_id FK "References source_files.id (CASCADE)"
+        uuid file_id FK "References source_files.id"
         varchar name "Identifier name"
-        varchar qualified_name "Nullable scoped qualified name"
-        enum kind "function | method | class | interface | struct | enum | variable | constant | type_alias | module"
-        integer line_start "Starting line number"
-        integer line_end "Ending line number"
-        boolean is_exported "Exported from module boolean"
-        boolean is_used "Internal reachability flag"
-        integer usage_count "Internal references count"
+        varchar qualified_name "Scoped identifier"
+        varchar kind "function, method, class, interface, struct, enum"
+        integer line_start "Starting line"
+        integer line_end "Ending line"
+        boolean is_exported "Exported boolean"
+        boolean is_used "Reachability flag"
+        integer usage_count "References count"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     DEPENDENCIES {
         uuid id PK
-        uuid from_file_id FK "References source_files.id (CASCADE)"
-        uuid to_file_id FK "References source_files.id (CASCADE)"
-        enum kind "import | inheritance | call | instantiation | reference"
-        varchar symbol "Nullable target symbol name"
-        integer line "Nullable source line number"
+        uuid from_file_id FK "References source_files.id"
+        uuid to_file_id FK "References source_files.id"
+        varchar kind "import, inheritance, call"
+        varchar symbol "Target symbol"
+        integer line "Source line number"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     METRICS {
         uuid id PK
-        uuid file_id FK "References source_files.id (CASCADE) UK"
-        integer cyclomatic "Cyclomatic complexity score"
-        integer cognitive "Cognitive complexity score"
-        integer lines_of_code "LOC excluding blanks/comments"
-        integer function_count "Total functions in file"
-        integer class_count "Total classes in file"
-        numeric dead_code_score "0.000 to 1.000 unreachability likelihood"
+        uuid file_id FK "Unique reference to source_files.id"
+        integer cyclomatic "Cyclomatic complexity"
+        integer cognitive "Cognitive complexity"
+        integer lines_of_code "Executable LOC"
+        integer function_count "Total functions"
+        integer class_count "Total classes"
+        numeric dead_code_score "Unreachability score"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     CHAT_SESSIONS {
         uuid id PK
-        uuid user_id FK "References users.id (CASCADE)"
-        uuid repository_id FK "References repositories.id (CASCADE)"
-        varchar title "Session title (max 200)"
-        timestamptz last_activity_at "Bumped on every message"
+        uuid user_id FK "References users.id"
+        uuid repository_id FK "References repositories.id"
+        varchar title "Session title"
+        timestamptz last_activity_at "Last active timestamp"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     CHAT_MESSAGES {
         uuid id PK
-        uuid session_id FK "References chat_sessions.id (CASCADE)"
-        varchar role "user | assistant"
+        uuid session_id FK "References chat_sessions.id"
+        varchar role "user or assistant"
         text content "Message body"
-        jsonb citations "Assistant citations list"
-        jsonb attached_context "User attached file chips"
+        jsonb citations "Assistant citations"
+        jsonb attached_context "User attached files"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
 
     STARS {
         uuid id PK
-        uuid user_id FK "References users.id (CASCADE)"
-        uuid repository_id FK "References repositories.id (CASCADE)"
+        uuid user_id FK "References users.id"
+        uuid repository_id FK "References repositories.id"
         timestamptz created_at "Created timestamp"
         timestamptz updated_at "Updated timestamp"
     }
@@ -367,139 +367,139 @@ A naive third-normal-form (3NF) relational schema designed for a single PostgreS
 
 ```mermaid
 erDiagram
-    ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERS : "has (1..N)"
-    ORGANIZATIONS ||--o{ API_KEYS : "provisions (0..N)"
-    ORGANIZATIONS ||--o{ REPOSITORIES : "owns (0..N)"
-    ORGANIZATIONS ||--o{ TOKEN_QUOTAS : "enforces (1..1)"
-    ORGANIZATIONS ||--o{ AUDIT_LOGS : "logs (0..N)"
-    ORGANIZATIONS ||--o{ GIT_CREDENTIALS : "manages (0..N)"
+    ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERS : has
+    ORGANIZATIONS ||--o{ API_KEYS : provisions
+    ORGANIZATIONS ||--o{ REPOSITORIES : owns
+    ORGANIZATIONS ||--o{ TOKEN_QUOTAS : enforces
+    ORGANIZATIONS ||--o{ AUDIT_LOGS : logs
+    ORGANIZATIONS ||--o{ GIT_CREDENTIALS : manages
 
-    USERS ||--o{ ORGANIZATION_MEMBERS : "belongs_to (0..N)"
-    USERS ||--o{ CHAT_SESSIONS : "participates_in (0..N)"
-    USERS ||--o{ STARS : "stars (0..N)"
-    USERS ||--o{ AUDIT_LOGS : "triggers (0..N)"
+    USERS ||--o{ ORGANIZATION_MEMBERS : belongs_to
+    USERS ||--o{ CHAT_SESSIONS : participates_in
+    USERS ||--o{ STARS : stars
+    USERS ||--o{ AUDIT_LOGS : triggers
 
-    REPOSITORIES ||--o{ COMMITS : "analyzes (1..N)"
-    REPOSITORIES ||--o{ ANALYSIS_JOBS : "triggers (0..N)"
-    REPOSITORIES ||--o{ CHAT_SESSIONS : "scoped_to (0..N)"
-    REPOSITORIES ||--o{ STARS : "starred_by (0..N)"
+    REPOSITORIES ||--o{ COMMITS : analyzes
+    REPOSITORIES ||--o{ ANALYSIS_JOBS : triggers
+    REPOSITORIES ||--o{ CHAT_SESSIONS : scoped_to
+    REPOSITORIES ||--o{ STARS : starred_by
 
-    COMMITS ||--o{ SOURCE_FILES : "contains (1..N)"
-    COMMITS ||--o{ DEPENDENCY_CYCLES : "exhibits (0..N)"
-    COMMITS ||--o{ ARCHITECTURE_LAYERS : "clusters_into (0..N)"
+    COMMITS ||--o{ SOURCE_FILES : contains
+    COMMITS ||--o{ DEPENDENCY_CYCLES : exhibits
+    COMMITS ||--o{ ARCHITECTURE_LAYERS : clusters_into
 
-    SOURCE_FILES ||--o{ SYMBOLS : "declares (0..N)"
-    SOURCE_FILES ||--o| METRICS : "has_metrics (1..1)"
-    SOURCE_FILES ||--o{ DEPENDENCIES : "outgoing_deps"
-    SOURCE_FILES ||--o{ DEPENDENCIES : "incoming_deps"
-    SOURCE_FILES ||--o{ CODE_CHUNKS : "chunked_into (0..N)"
+    SOURCE_FILES ||--o{ SYMBOLS : declares
+    SOURCE_FILES ||--o| METRICS : has_metrics
+    SOURCE_FILES ||--o{ DEPENDENCIES : outgoing_deps
+    SOURCE_FILES ||--o{ DEPENDENCIES : incoming_deps
+    SOURCE_FILES ||--o{ CODE_CHUNKS : chunked_into
 
-    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : "contains (0..N)"
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
 
     ORGANIZATIONS {
         uuid id PK
-        varchar slug UK "URL slug"
+        varchar slug "Unique organization slug"
         varchar name "Organization legal name"
-        enum plan "free | team | enterprise"
+        varchar plan "free, team, enterprise"
         timestamptz deleted_at "Soft delete timestamp"
-        timestamptz created_at
+        timestamptz created_at "Created timestamp"
     }
 
     ORGANIZATION_MEMBERS {
         uuid id PK
         uuid organization_id FK
         uuid user_id FK
-        enum role "owner | admin | member | viewer"
-        timestamptz created_at
+        varchar role "owner, admin, member, viewer"
+        timestamptz created_at "Created timestamp"
     }
 
     GIT_CREDENTIALS {
         uuid id PK
         uuid organization_id FK
-        enum provider "github | gitlab | bitbucket"
+        varchar provider "github, gitlab, bitbucket"
         bytea encrypted_token "AES-256-GCM cipher bytes"
         varchar key_id "AWS KMS key identifier"
-        timestamptz expires_at
-        timestamptz created_at
+        timestamptz expires_at "Token expiration"
+        timestamptz created_at "Created timestamp"
     }
 
     REPOSITORIES {
-        uuid id PK "Part of Composite Partition Key"
-        uuid organization_id FK "Sharding Distribution Key"
+        uuid id PK "Composite partition key"
+        uuid organization_id FK "Sharding distribution key"
         varchar url "Repository clone URL"
-        varchar default_branch
-        boolean is_private "True for private enterprise repos"
+        varchar default_branch "Default branch"
+        boolean is_private "Private repository flag"
         integer star_count "Denormalized stars"
         timestamptz deleted_at "Soft delete flag"
-        timestamptz created_at
+        timestamptz created_at "Created timestamp"
     }
 
     COMMITS {
         uuid id PK
-        uuid repository_id FK "Distribution Key"
-        varchar commit_hash "Git SHA-1 commit"
+        uuid repository_id FK "Distribution key"
+        varchar commit_hash "Git commit SHA"
         varchar parent_hash "Parent commit for diffs"
         varchar branch "Analyzed branch"
-        integer analysis_version
-        timestamptz analyzed_at
+        integer analysis_version "Analysis logic version"
+        timestamptz analyzed_at "Analysis timestamp"
     }
 
     SOURCE_FILES {
         uuid id PK
-        uuid commit_id FK "Tied to specific commit snapshot"
-        uuid repository_id "Denormalized Partition Key"
+        uuid commit_id FK "Tied to commit snapshot"
+        uuid repository_id "Denormalized partition key"
         varchar path "POSIX file path"
-        varchar language
-        integer line_count
+        varchar language "Programming language"
+        integer line_count "Line count"
         varchar sha256 "Content hash for diffing"
     }
 
     DEPENDENCIES {
         uuid id PK
         uuid commit_id FK
-        uuid repository_id "Denormalized Partition Key"
+        uuid repository_id "Denormalized partition key"
         uuid from_file_id FK
         uuid to_file_id FK
-        enum kind "import | inheritance | call"
-        varchar symbol
+        varchar kind "import, inheritance, call"
+        varchar symbol "Target symbol"
     }
 
     DEPENDENCY_CYCLES {
         uuid id PK
         uuid commit_id FK
-        uuid repository_id "Denormalized Partition Key"
-        integer cycle_index
-        jsonb file_ids "Array of file UUIDs in cycle"
-        integer length
+        uuid repository_id "Denormalized partition key"
+        integer cycle_index "Cycle number"
+        jsonb file_ids "Array of file IDs in cycle"
+        integer length "Cycle node count"
     }
 
     CODE_CHUNKS {
         uuid id PK
         uuid file_id FK
-        uuid repository_id "Denormalized Partition Key"
-        integer chunk_index
-        integer line_start
-        integer line_end
+        uuid repository_id "Denormalized partition key"
+        integer chunk_index "Index within file"
+        integer line_start "Starting line"
+        integer line_end "Ending line"
         text content "Raw code slice"
-        vector embedding "pgvector 384 or 1536 dims"
+        vector embedding "Embedding vector"
     }
 
     TOKEN_QUOTAS {
         uuid id PK
-        uuid organization_id FK UK
-        bigint monthly_token_limit
-        bigint tokens_consumed_this_month
-        timestamptz resets_at
+        uuid organization_id FK "Unique organizational reference"
+        bigint monthly_token_limit "Monthly token budget"
+        bigint tokens_consumed_this_month "Tokens consumed"
+        timestamptz resets_at "Quota reset date"
     }
 
     AUDIT_LOGS {
         uuid id PK
         uuid organization_id FK
         uuid user_id FK
-        varchar action "repo.view | chat.query | repo.delete"
-        varchar ip_address
-        jsonb metadata
-        timestamptz created_at
+        varchar action "Logged action"
+        varchar ip_address "Client IP address"
+        jsonb metadata "Event payload"
+        timestamptz created_at "Created timestamp"
     }
 ```
 

@@ -111,49 +111,49 @@ The platform consists of four primary custom software modules and three stateful
 ```mermaid
 flowchart TB
     subgraph ClientLayer ["Client Layer"]
-        Browser["Web Browser (User)"]
+        Browser["Web Browser (React 18 SPA)"]
     end
 
-    subgraph EdgeLayer ["Edge / Ingress Layer"]
-        Nginx["Nginx Reverse Proxy (:8080)<br/>Static Assets + SSL / Proxy Pass"]
+    subgraph EdgeLayer ["Edge and Ingress Layer"]
+        Nginx["Nginx Reverse Proxy on port 8080"]
     end
 
     subgraph ApplicationLayer ["Application Services"]
-        Backend["FastAPI Backend (:8000)<br/>Async Endpoints, Auth, Reaper"]
-        Worker["RQ Analysis Worker<br/>Burst-Mode Job Consumer"]
-        Engine["Analysis Engine Library<br/>Cloning, Parsers, Graphs, RAG"]
+        Backend["FastAPI Backend on port 8000"]
+        Worker["RQ Analysis Worker"]
+        Engine["Analysis Engine Library"]
     end
 
     subgraph StatefulLayer ["Stateful Persistence Layer"]
-        PG[("PostgreSQL 16 (Neon / Local)<br/>System of Record (10 Tables)")]
-        Redis[("Redis 7 (Upstash / Local)<br/>Queue & Response Cache")]
-        Chroma[("ChromaDB 0.5.5 (:8000)<br/>Vector Store (Code Chunks)")]
+        PG[("PostgreSQL 16 Database")]
+        Redis[("Redis 7 Queue and Cache")]
+        Chroma[("ChromaDB Vector Store")]
     end
 
     subgraph ExternalProviders ["External Managed Services"]
-        GitHub["GitHub API & Git HTTPS<br/>OAuth & Repository Cloning"]
-        Groq["Groq Cloud LLM API<br/>Llama-3.3-70b-versatile"]
-        Ollama["Ollama (Local Fallback)<br/>LLM + Embeddings"]
-        HF["HuggingFace Inference API<br/>all-MiniLM-L6-v2 Embeddings"]
+        GitHub["GitHub API and Git HTTPS"]
+        Groq["Groq Cloud LLM API"]
+        Ollama["Ollama Local Fallback"]
+        HF["HuggingFace Inference API"]
     end
 
-    Browser -->|HTTPS :8080| Nginx
-    Nginx -->|Static HTML/JS/CSS| Browser
-    Nginx -->|/api/v1/* Proxy Pass| Backend
+    Browser -->|HTTPS 8080| Nginx
+    Nginx -->|Static Assets| Browser
+    Nginx -->|Proxy Pass /api/v1| Backend
 
-    Backend -->|GitHub OAuth Roundtrip| GitHub
-    Backend -->|Async SQLAlchemy SQL| PG
-    Backend -->|JSON Cache / RQ Enqueue| Redis
-    Backend -->|RAG Vector Query| Chroma
-    Backend -->|Streaming Chat Completion| Groq
+    Backend -->|OAuth Roundtrip| GitHub
+    Backend -->|SQL Queries| PG
+    Backend -->|Cache and Enqueue| Redis
+    Backend -->|Vector Search| Chroma
+    Backend -->|Streaming Chat| Groq
     Backend -.->|Local Chat Fallback| Ollama
 
     Redis -->|Dequeue Jobs| Worker
     Worker -->|Shallow Git Clone| GitHub
-    Worker -->|Drives Execution| Engine
-    Worker -->|Heartbeats & Persist Results| PG
-    Worker -->|Chunk Embeddings Upsert| Chroma
-    Worker -->|Inference Embeddings| HF
+    Worker -->|Invoke Parsing| Engine
+    Worker -->|Heartbeat and Persist| PG
+    Worker -->|Upsert Vectors| Chroma
+    Worker -->|Embeddings Inference| HF
     Worker -.->|Local Embeddings Fallback| Ollama
 ```
 

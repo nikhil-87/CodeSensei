@@ -9,23 +9,23 @@ CodeSensei is a small distributed system of independently deployable services:
 ```mermaid
 flowchart TB
   subgraph Client
-    FE[Frontend SPA<br/>React + Vite + nginx]
+    FE[Frontend SPA: React and Vite and Nginx]
   end
   subgraph API
-    BE[Backend<br/>FastAPI async]
+    BE[Backend: FastAPI Async]
   end
   subgraph Async
-    Q[(Redis<br/>RQ queue + cache)]
-    W[Worker<br/>RQ consumer]
-    AE[[Analysis Engine<br/>standalone lib]]
+    Q[(Redis: RQ Queue and Cache)]
+    W[Worker: RQ Consumer]
+    AE[Analysis Engine: Standalone Lib]
   end
   subgraph Data
-    PG[(PostgreSQL<br/>system of record)]
-    CH[(ChromaDB<br/>vector store)]
+    PG[(PostgreSQL: System of Record)]
+    CH[(ChromaDB: Vector Store)]
   end
   subgraph AI
-    LLM[Groq / Ollama]
-    EMB[HuggingFace / Ollama / local]
+    LLM[Groq or Ollama]
+    EMB[HuggingFace or Ollama]
   end
 
   FE -->|/api/v1| BE

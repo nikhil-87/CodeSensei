@@ -143,14 +143,14 @@ sequenceDiagram
     autonumber
     participant Client
     participant FastAPI
-    participant MW as Middleware<br/>(CORS → Prometheus → ReqContext → RateLimit)
+    participant MW as Middleware Pipeline
     participant H as repositories.submit_repository
     participant S as RepositoryService.submit
     participant Sec as core.security
     participant DB as PostgreSQL (async)
-    participant Q as JobDispatcher → Redis (RQ)
+    participant Q as JobDispatcher and Redis
 
-    Client->>FastAPI: POST /api/v1/repositories<br/>{url, branch}
+    Client->>FastAPI: POST /api/v1/repositories with url and branch
     FastAPI->>MW: pass through
     MW->>H: handler invoked (Request-ID set)
     H->>S: submit(payload)

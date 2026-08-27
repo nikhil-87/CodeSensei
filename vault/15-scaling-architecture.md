@@ -54,19 +54,19 @@ flowchart TB
         Browser["User Browser (React SPA)"]
     end
 
-    subgraph SingleNode ["Single Container Host (1–4GB RAM)"]
-        Nginx["Nginx Reverse Proxy (:8080)"]
-        API["FastAPI API Instance (:8000)"]
+    subgraph SingleNode ["Single Container Host (1 to 4GB RAM)"]
+        Nginx["Nginx Reverse Proxy on port 8080"]
+        API["FastAPI API Instance on port 8000"]
         Worker["Single RQ Worker (Burst Mode)"]
-        Chroma["ChromaDB Container (:8000)"]
-        FS[("Shared Local Workspace Disk<br/>/var/lib/codesensei/workspaces")]
+        Chroma["ChromaDB Container on port 8000"]
+        FS[("Shared Local Workspace Disk")]
     end
 
     subgraph FreeTierCloud ["External Serverless Free Tier"]
-        Neon[("Neon PostgreSQL<br/>(0.5GB Free Tier)")]
-        Upstash[("Upstash Redis<br/>(10K cmds/day, TLS)")]
-        Groq["Groq Cloud LLM<br/>(30 req/min Free API)"]
-        HF["HuggingFace Inference API<br/>(Free Serverless Embeddings)"]
+        Neon[("Neon PostgreSQL Free Tier")]
+        Upstash[("Upstash Redis")]
+        Groq["Groq Cloud LLM"]
+        HF["HuggingFace Inference API"]
     end
 
     Browser -->|HTTPS| Nginx
@@ -108,34 +108,35 @@ flowchart TB
 ```mermaid
 flowchart TB
     Browser["Client Browsers (React SPA)"]
-    CDN["Cloudflare CDN / WAF<br/>Edge Caching & SSL Termination"]
+    CDN["Cloudflare CDN and WAF"]
     ALB["AWS Application Load Balancer"]
 
-    subgraph APIScalingGroup ["FastAPI Auto Scaling Group (3–5 Pods)"]
+    subgraph APIScalingGroup ["FastAPI Auto Scaling Group (3 to 5 Pods)"]
         API1["FastAPI Pod 1"]
         API2["FastAPI Pod 2"]
         API3["FastAPI Pod N"]
     end
 
-    subgraph WorkerPool ["Worker Auto Scaling Group (2–8 Workers)"]
-        W1["RQ Worker 1 + NVMe"]
-        W2["RQ Worker 2 + NVMe"]
-        WN["RQ Worker N + NVMe"]
+    subgraph WorkerPool ["Worker Auto Scaling Group (2 to 8 Workers)"]
+        W1["RQ Worker 1 and NVMe"]
+        W2["RQ Worker 2 and NVMe"]
+        WN["RQ Worker N and NVMe"]
     end
 
-    subgraph DataStorage ["Data & Cache Tier"]
-        PGPrimary[("PostgreSQL 16 Primary (Writes)")]
-        PGReplica[("PostgreSQL 16 Replica (Reads)")]
-        RedisCluster[("Managed Redis 7 / Dragonfly<br/>Queue, Shared Cache, Rate Limiting")]
-        ChromaCluster[("Dedicated ChromaDB / Qdrant Node")]
+    subgraph DataStorage ["Data and Cache Tier"]
+        PGPrimary[("PostgreSQL 16 Primary Writes")]
+        PGReplica[("PostgreSQL 16 Replica Reads")]
+        RedisCluster[("Managed Redis 7 or Dragonfly")]
+        ChromaCluster[("Dedicated ChromaDB or Qdrant Node")]
     end
 
-    Browser --> CDN --> ALB
+    Browser --> CDN
+    CDN --> ALB
     ALB --> APIScalingGroup
 
     APIScalingGroup -->|Writes| PGPrimary
-    APIScalingGroup -->|Reads (Discover/Graph)| PGReplica
-    APIScalingGroup -->|Token Bucket & Cache| RedisCluster
+    APIScalingGroup -->|Reads| PGReplica
+    APIScalingGroup -->|Token Bucket and Cache| RedisCluster
     APIScalingGroup -->|Vector Search| ChromaCluster
 
     RedisCluster -->|Dequeue Tasks| WorkerPool
@@ -169,41 +170,41 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    Client["Clients / Mobile / Web"] --> CDN["Cloudflare Edge + Global Cache"]
+    Client["Clients, Mobile, Web"] --> CDN["Cloudflare Edge and Global Cache"]
     CDN --> Ingress["Kubernetes NGINX Ingress Controller"]
 
     subgraph K8sCluster ["Amazon EKS Cluster"]
-        subgraph APIDeployment ["FastAPI Deployment (HPA: CPU & Latency)"]
-            APIPods["FastAPI Pods (10–30 Replicas)"]
+        subgraph APIDeployment ["FastAPI Deployment with HPA"]
+            APIPods["FastAPI Pods (10 to 30 Replicas)"]
         end
 
-        subgraph KEDAWorkers ["Worker Deployments (KEDA Scaled on Queue Depth)"]
-            QSmallW["Small Repo Workers (High Concurrency)"]
+        subgraph KEDAWorkers ["Worker Deployments with KEDA"]
+            QSmallW["Small Repo Workers"]
             QMedW["Medium Repo Workers"]
-            QLargeW["Large Repo Workers (High Memory)"]
+            QLargeW["Large Repo Workers"]
         end
 
-        LLMGateway["Internal LLM Router<br/>(Groq -> Anthropic -> Self-Hosted vLLM)"]
+        LLMGateway["Internal LLM Gateway Router"]
     end
 
     subgraph PersistentTier ["Distributed Data Tier"]
-        DBCluster[("PostgreSQL Aurora Multi-AZ<br/>1 Writer + 3 Auto-Scaling Readers")]
-        RedisHA[("Redis Cluster / Dragonfly (3 Master, 3 Replica)")]
-        QdrantCluster[("Qdrant Vector Cluster (Sharded HNSW)")]
-        S3[("AWS S3 (Temporary Repo Tarballs)")]
+        DBCluster[("PostgreSQL Aurora Multi-AZ")]
+        RedisHA[("Redis Cluster or Dragonfly")]
+        QdrantCluster[("Qdrant Vector Cluster")]
+        S3[("AWS S3 Object Storage")]
     end
 
     Ingress --> APIPods
     APIPods -->|Writes| DBCluster
     APIPods -->|Reads| DBCluster
-    APIPods -->|Queue Enqueue & Cache| RedisHA
+    APIPods -->|Queue Enqueue and Cache| RedisHA
     APIPods -->|RAG Vector Query| QdrantCluster
-    APIPods -->|Streaming Q&A| LLMGateway
+    APIPods -->|Streaming Chat| LLMGateway
 
     RedisHA -->|Priority Queues| KEDAWorkers
     KEDAWorkers -->|Persist Results| DBCluster
     KEDAWorkers -->|Upsert Vectors| QdrantCluster
-    KEDAWorkers -->|Store/Retrieve Tarball| S3
+    KEDAWorkers -->|Store and Retrieve Tarball| S3
 ```
 
 ### 4.3 Trade-offs & New Failure Modes
@@ -225,7 +226,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    UserGlobal["Global Users (US, EU, APAC)"] --> Cloudflare["Cloudflare Anycast DNS & Edge Network"]
+    UserGlobal["Global Users (US, EU, APAC)"] --> Cloudflare["Cloudflare Anycast DNS and Edge Network"]
 
     subgraph RegionUS ["Region: US-East (Primary Engine)"]
         API_US["FastAPI Pods US"]
@@ -238,10 +239,10 @@ flowchart TB
     end
 
     subgraph DataFabric ["Global Distributed Data Fabric"]
-        ShardedDB[("CockroachDB / Citus PG<br/>(Horizontally Sharded by Tenant/User)")]
+        ShardedDB[("CockroachDB or Citus PG")]
         GlobalRedis[("Global Redis Cache Mesh")]
         DistQdrant[("Distributed Qdrant Vector Fabric")]
-        TritonCluster["Triton GPU Inference Cluster<br/>(Dedicated Embedding Models)"]
+        TritonCluster["Triton GPU Inference Cluster"]
     end
 
     Cloudflare -->|Geo-Routing| API_US

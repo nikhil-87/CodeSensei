@@ -42,8 +42,8 @@ and Grafana auto-provisions two dashboards.
 ```mermaid
 flowchart LR
     subgraph App["Application tier"]
-        BE[backend FastAPI<br/>/metrics]
-        WK[worker RQ<br/>:9101/metrics]
+        BE[Backend FastAPI metrics]
+        WK[Worker RQ metrics]
     end
 
     subgraph Exporters
@@ -65,7 +65,7 @@ flowchart LR
     NE --> OS
     CA --> DK
 
-    PR[(Prometheus<br/>15d TSDB)]
+    PR[(Prometheus 15d TSDB)]
     BE --> PR
     WK --> PR
     RE --> PR
@@ -76,7 +76,7 @@ flowchart LR
     PR -.->|recording rules| PR
     PR -.->|alert rules| ALR[Grafana Alerting]
 
-    GF[Grafana 11<br/>provisioned]
+    GF[Grafana 11 provisioned]
     PR --> GF
     ALR --> GF
 ```

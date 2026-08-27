@@ -80,10 +80,10 @@ Scale: ✅ strong · 🟡 adequate with gaps · 🔴 needs work.
 
 ```mermaid
 flowchart TD
-    P1[1. Persist ChromaDB<br/>volume or managed vector DB] --> P2[2. Redis-backed rate limiter]
-    P2 --> P3[3. Shared clone cache / object store]
+    P1[1. Persist ChromaDB volume or managed vector DB] --> P2[2. Redis-backed rate limiter]
+    P2 --> P3[3. Shared clone cache or object store]
     P3 --> P4[4. Postgres-backed worker tests in CI]
-    P4 --> P5[5. Dashboards + alert rules as code]
+    P4 --> P5[5. Dashboards and alert rules as code]
     P5 --> P6[6. Load-test gate with thresholds]
 ```
 

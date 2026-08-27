@@ -58,6 +58,7 @@ The documentation suite is partitioned into 25 dedicated markdown documents cove
 | **22. Resume Fact Sheet** | [22-resume-and-portfolio-fact-sheet.md](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/vault/22-resume-and-portfolio-fact-sheet.md) | Verifiable technical bullet points categorized with exact code citations |
 | **23. "Do Not Claim" Section** | [23-do-not-claim.md](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/vault/23-do-not-claim.md) | Anti-hallucination boundary: unverified, theoretical, or stubbed items |
 | **24. Documentation Accuracy Audit** | [24-documentation-accuracy-audit.md](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/vault/24-documentation-accuracy-audit.md) | Traceability verification matrix linking documentation directly to source code |
+| **Master Technical Reference** | [PROJECT_SOURCE_OF_TRUTH.md](file:///c:/Users/nikhil/Desktop/projectss/github-repo-intelligence-platform/codesensei-github-repo-intelligence-platform/vault/PROJECT_SOURCE_OF_TRUTH.md) | Authoritative single source of truth for the active codebase (for AI audits & interview prep) |
 
 ---
 

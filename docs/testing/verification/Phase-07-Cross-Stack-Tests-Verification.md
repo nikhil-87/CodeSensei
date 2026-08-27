@@ -44,34 +44,34 @@ name, or a UI route — fails CI before it can ship.
 flowchart TB
     subgraph Backend["Backend integration suite"]
         A[pytest collects tests]
-        A --> B[create_app(test_settings)]
-        B --> C[app.dependency_overrides<br/>get_db_session<br/>get_settings<br/>_make_job_dispatcher<br/>get_cache]
-        C --> D[TestClient<br/>HTTP request]
+        A --> B[create_app test_settings]
+        B --> C[app.dependency_overrides]
+        C --> D[TestClient HTTP request]
         D --> E[FastAPI router]
         E --> F[Service layer]
         F --> G[Repository layer]
-        G --> H[(in-memory<br/>SQLite + StaticPool)]
-        F --> I[FakeJobDispatcher<br/>records call]
-        F --> J[fakeredis-backed<br/>RedisCache]
+        G --> H[(in-memory SQLite StaticPool)]
+        F --> I[FakeJobDispatcher records call]
+        F --> J[fakeredis-backed RedisCache]
     end
 
     subgraph Contract["Contract suite"]
         K[Import FastAPI app]
         K --> L[app.openapi]
-        L --> M[Assert paths<br/>+ schemas<br/>+ enums]
-        M --> N[Read frontend api.ts<br/>+ snapshot regex]
+        L --> M[Assert paths and schemas and enums]
+        M --> N[Read frontend api.ts and regex]
     end
 
     subgraph E2E["Playwright E2E"]
         O[Start Vite dev server]
-        O --> P[Browser → /]
-        P --> Q[page.route<br/>mocks API]
+        O --> P[Browser to root route]
+        P --> Q[page.route mocks API]
         Q --> R[UI assertions]
     end
 
     subgraph Load["Locust load"]
         S[Real backend running]
-        S --> T[DashboardUser<br/>read-heavy mix]
+        S --> T[DashboardUser read-heavy mix]
         T --> U[Aggregate p95 / RPS]
     end
 ```

@@ -9,25 +9,28 @@
 
 ```mermaid
 flowchart TD
-    Client["Client / Frontend SPA"]
+    Client["Client Frontend SPA"]
     
     subgraph MiddlewareStack ["FastAPI Middleware Pipeline"]
-        CORS["CORSMiddleware (allow_origins, credentials)"]
-        Prom["PrometheusMiddleware (observe latency/status)"]
-        ReqCtx["RequestContextMiddleware (bind X-Request-ID)"]
-        RateLimit["RateLimitMiddleware (sliding window per IP)"]
+        CORS["CORSMiddleware"]
+        Prom["PrometheusMiddleware"]
+        ReqCtx["RequestContextMiddleware"]
+        RateLimit["RateLimitMiddleware"]
     end
     
     subgraph RouteGroups ["API Route Groups"]
-        HealthGroup["Health & Probes<br/>/healthz, /readyz, /metrics"]
-        AuthGroup["Authentication<br/>/api/v1/auth/*"]
-        RepoGroup["Repositories & Jobs<br/>/api/v1/repositories/*"]
-        IntelGroup["Intelligence Endpoints<br/>/api/v1/repositories/{id}/*"]
-        AIGroup["AI & Chat Sessions<br/>/api/v1/chat-sessions/*, /api/v1/ai/*"]
-        SocialGroup["Social & Discovery<br/>/api/v1/discover/*, /api/v1/stars/*, /api/v1/users/*"]
+        HealthGroup["Health and Probes: /healthz, /readyz, /metrics"]
+        AuthGroup["Authentication: /api/v1/auth"]
+        RepoGroup["Repositories and Jobs: /api/v1/repositories"]
+        IntelGroup["Intelligence Endpoints: /api/v1/repositories/id"]
+        AIGroup["AI and Chat Sessions: /api/v1/chat-sessions"]
+        SocialGroup["Social and Discovery: /api/v1/discover"]
     end
 
-    Client --> CORS --> Prom --> ReqCtx --> RateLimit
+    Client --> CORS
+    CORS --> Prom
+    Prom --> ReqCtx
+    ReqCtx --> RateLimit
     RateLimit --> HealthGroup
     RateLimit --> AuthGroup
     RateLimit --> RepoGroup

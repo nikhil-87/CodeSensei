@@ -17,31 +17,31 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     Note over User,GitHub: 1. OAuth Redirect Handshake
-    User->>Browser: Click "Sign in with GitHub"
+    User->>Browser: Click Sign in with GitHub
     Browser->>API: GET /api/v1/auth/github/login
     API->>API: Generate random state token
-    API-->>Browser: 307 Redirect to GitHub<br/>Set-Cookie: codesensei_oauth_state (max-age: 600s, httpOnly)
-    Browser->>GitHub: GET /login/oauth/authorize?client_id&state&scope=read:user,user:email
+    API-->>Browser: 307 Redirect to GitHub (Set-Cookie: codesensei_oauth_state)
+    Browser->>GitHub: GET /login/oauth/authorize
     User->>GitHub: Grant Consent
 
-    Note over User,GitHub: 2. Callback & Code Exchange
-    GitHub-->>Browser: 302 Redirect to /api/v1/auth/github/callback?code=XYZ&state=ABC
-    Browser->>API: GET /api/v1/auth/github/callback?code=XYZ&state=ABC<br/>Cookie: codesensei_oauth_state=ABC
+    Note over User,GitHub: 2. Callback and Code Exchange
+    GitHub-->>Browser: 302 Redirect to /api/v1/auth/github/callback
+    Browser->>API: GET /api/v1/auth/github/callback with state and code
     API->>API: Validate state matches cookie (CSRF check)
-    API->>GitHub: POST /login/oauth/access_token (code, client_secret)
+    API->>GitHub: POST /login/oauth/access_token
     GitHub-->>API: 200 OK (access_token)
     API->>GitHub: GET /user (Bearer access_token)
-    GitHub-->>API: 200 OK (id, login, name, email, avatar_url)
+    GitHub-->>API: 200 OK with profile JSON
     
-    Note over API,DB: 3. User Upsert & Session Minting
+    Note over API,DB: 3. User Upsert and Session Minting
     API->>DB: Upsert into users by github_id
-    DB-->>API: User entity (UUID id)
+    DB-->>API: User entity
     API->>API: Mint signed JWT (HS256 with sub=user.id, exp=7d)
-    API-->>Browser: 307 Redirect to FRONTEND_BASE_URL<br/>Set-Cookie: codesensei_session=JWT (httpOnly, SameSite=Lax)<br/>Clear-Cookie: codesensei_oauth_state
+    API-->>Browser: 307 Redirect to frontend with session cookie
     
     Note over Browser,API: 4. Authenticated Request
-    Browser->>API: GET /api/v1/auth/me<br/>Cookie: codesensei_session=JWT
-    API->>API: Verify HS256 signature, check exp, extract sub
+    Browser->>API: GET /api/v1/auth/me with session cookie
+    API->>API: Verify HS256 signature and extract sub
     API->>DB: Fetch user by id
     DB-->>API: User entity
     API-->>Browser: 200 OK (User JSON)

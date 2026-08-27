@@ -10,20 +10,20 @@
 ```mermaid
 flowchart LR
     subgraph AppInstances ["Application Pods"]
-        API["FastAPI API (:8000)<br/>structlog + /metrics"]
-        Worker["RQ Worker (:9100)<br/>structlog + /metrics"]
+        API["FastAPI API on port 8000"]
+        Worker["RQ Worker on port 9100"]
     end
 
     subgraph ScrapeTarget ["Prometheus Agent"]
-        Prom["Prometheus Server (:9090)<br/>Scrapes :8000 and :9100 every 15s"]
+        Prom["Prometheus Server on port 9090"]
     end
 
-    subgraph Viz ["Visualization & Alerting"]
-        Grafana["Grafana Dashboards (:3000)<br/>SLO Tracking, Rate & Error Charts"]
+    subgraph Viz ["Visualization and Alerting"]
+        Grafana["Grafana Dashboards on port 3000"]
     end
 
     subgraph LogSink ["Log Aggregator"]
-        Loki["Structured JSON Stream<br/>(stdout / Loki / CloudWatch)"]
+        Loki["Structured JSON Stream"]
     end
 
     API -->|Stdout JSON Logs| Loki

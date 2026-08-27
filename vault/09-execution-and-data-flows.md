@@ -16,76 +16,76 @@ sequenceDiagram
     participant Browser as React SPA
     participant API as FastAPI Backend
     participant DB as PostgreSQL
-    participant Redis as Redis (Queue & Cache)
+    participant Redis as Redis Queue and Cache
     participant Worker as RQ Worker
     participant Engine as Analysis Engine
     participant GitHub as GitHub Git HTTPS
     participant Chroma as ChromaDB
 
     User->>Browser: Submit repository URL
-    Browser->>API: POST /api/v1/repositories {url, branch}
-    API->>API: validate_github_url(url)
+    Browser->>API: POST /api/v1/repositories
+    API->>API: validate_github_url SSRF guard
     
     rect rgb(240, 248, 255)
-        Note over API,DB: Transaction A: Create Repo & Job
-        API->>DB: INSERT INTO repositories (status='pending')
-        API->>DB: INSERT INTO analysis_jobs (status='queued')<br/>[Guarded by uq_active_job_per_repository]
-        DB-->>API: job.id, repo.id
+        Note over API,DB: Transaction A: Create Repo and Job
+        API->>DB: INSERT INTO repositories (status=pending)
+        API->>DB: INSERT INTO analysis_jobs (status=queued)
+        DB-->>API: job_id, repo_id
     end
 
-    API->>Redis: queue.enqueue("worker.app.tasks.analyze_repository.run", repo_id, job_id)
-    Redis-->>API: rq_job.id
-    API-->>Browser: 202 Accepted {job_id, status: "queued"}
-    Browser->>API: GET /api/v1/repositories/:id/events (SSE Connection)
+    API->>Redis: enqueue analysis job
+    Redis-->>API: rq_job_id
+    API-->>Browser: 202 Accepted with job_id
+    Browser->>API: GET /api/v1/repositories/{id}/events (SSE)
 
-    Worker->>Redis: SimpleWorker.work(burst=True) -> Dequeue Job
-    Worker->>DB: UPDATE analysis_jobs SET status='running', started_at=now(), heartbeat_at=now()
-    Worker->>DB: UPDATE repositories SET status='analyzing'
+    Worker->>Redis: SimpleWorker burst mode dequeues job
+    Worker->>DB: UPDATE analysis_jobs SET status=running, heartbeat_at=now
+    Worker->>DB: UPDATE repositories SET status=analyzing
 
     Note over Worker,GitHub: Step 1: Sandboxed Shallow Clone
-    Worker->>GitHub: git clone --depth 1 --branch ...
-    GitHub-->>Worker: Cloned Git workspace (/var/lib/codesensei/workspaces/slug)
+    Worker->>GitHub: git clone --depth 1 --branch
+    GitHub-->>Worker: Cloned Git workspace directory
 
-    Note over Worker,Engine: Step 2: Walk & Concurrent Parse
-    Worker->>Engine: AnalysisOrchestrator.run_on_path(workspace)
-    Engine->>Engine: FileWalker.walk() -> filter ignore patterns
+    Note over Worker,Engine: Step 2: Walk and Concurrent Parse
+    Worker->>Engine: AnalysisOrchestrator.run_on_path
+    Engine->>Engine: FileWalker filters ignore patterns
     
-    par ThreadPoolExecutor (parse_workers=4)
+    par ThreadPoolExecutor with 4 workers
         Engine->>Engine: Parse file 1 (Python AST / Tree-sitter / Regex)
         Engine->>Engine: Parse file 2 (Python AST / Tree-sitter / Regex)
         Engine->>Engine: Parse file N (Python AST / Tree-sitter / Regex)
     end
 
     loop Every N files processed
-        Worker->>DB: UPDATE analysis_jobs SET progress=X, heartbeat_at=now()
-        API-->>Browser: SSE event: "progress" {progress: X, message: "..."}
+        Worker->>DB: UPDATE analysis_jobs SET progress=X, heartbeat_at=now
+        API-->>Browser: SSE event: progress
     end
 
-    Note over Engine: Step 3: Graph, Cycles & Classification
-    Engine->>Engine: GraphBuilder.build() -> resolve dependency edges
-    Engine->>Engine: Tarjan's SCC -> detect_cycles(edges)
-    Engine->>Engine: Metric calculation & dead_code reachability
-    Engine->>Engine: classify_architecture() -> Mermaid diagram
+    Note over Engine: Step 3: Graph, Cycles and Classification
+    Engine->>Engine: GraphBuilder resolves dependency edges
+    Engine->>Engine: Tarjan SCC detects circular dependency cycles
+    Engine->>Engine: Compute cyclomatic and dead-code metrics
+    Engine->>Engine: Classify architecture into module tiers
     Engine-->>Worker: RepositoryAnalysis result object
 
     rect rgb(245, 255, 245)
-        Note over Worker,DB: Transaction B: Atomic Replace & Version Stamp
-        Worker->>DB: DELETE FROM source_files WHERE repository_id = :id (Cascades)
+        Note over Worker,DB: Transaction B: Atomic Replace and Version Stamp
+        Worker->>DB: DELETE FROM source_files WHERE repository_id = id
         Worker->>DB: Batch INSERT source_files
         Worker->>DB: Batch INSERT symbols, metrics, dependencies
-        Worker->>DB: UPDATE repositories SET status='ready', file_count=N, star_count=0, analysis_version=1...
-        Worker->>DB: Commit Tx B
+        Worker->>DB: UPDATE repositories SET status=ready
+        Worker->>DB: Commit Transaction B
     end
 
     Note over Worker,Chroma: Step 4: Best-Effort Vector Indexing
-    Worker->>Worker: CodeChunker.chunk_repository() (symbol-aware slices)
-    Worker->>Worker: Batch call Embedding Provider (HuggingFace / Ollama)
-    Worker->>Chroma: Upsert vectors & metadata to collection repo_:id
-    Note over Worker,Chroma: Failure here does not fail analysis (IndexingDegraded swallowed)
+    Worker->>Worker: CodeChunker creates symbol-aware slices
+    Worker->>Worker: Batch call embedding provider
+    Worker->>Chroma: Upsert vectors and metadata
+    Note over Worker,Chroma: Indexing failure caught and degraded gracefully
 
-    Worker->>DB: UPDATE analysis_jobs SET status='succeeded', progress=100, completed_at=now()
-    Worker->>Redis: Invalidate cached graphs (delete_prefix("repo::id"))
-    API-->>Browser: SSE event: "succeeded" {progress: 100}
+    Worker->>DB: UPDATE analysis_jobs SET status=succeeded, progress=100
+    Worker->>Redis: Invalidate cached graphs
+    API-->>Browser: SSE event: succeeded
     Browser->>Browser: Render Complete Dashboard
 ```
 
@@ -103,45 +103,45 @@ sequenceDiagram
     participant API as FastAPI (ChatSessionService)
     participant DB as PostgreSQL
     participant Chroma as ChromaDB
-    participant LLM as Groq Cloud API (Llama 3.3)
+    participant LLM as Groq Cloud API
 
-    User->>Browser: Types question + attaches context chip ("src/core/auth.py")
-    Browser->>API: POST /api/v1/chat-sessions/:sessionId/chat {question, attached: [...]}
+    User->>Browser: Types question and attaches context chip for auth.py
+    Browser->>API: POST /api/v1/chat-sessions/{sessionId}/chat with question
 
     rect rgb(255, 250, 240)
-        Note over API,DB: Transaction 1: Save User Turn & Validate Access
-        API->>DB: SELECT * FROM chat_sessions WHERE id = :id AND user_id = :user_id
+        Note over API,DB: Transaction 1: Save User Turn and Validate Access
+        API->>DB: SELECT from chat_sessions WHERE id = session_id
         DB-->>API: session entity
-        API->>DB: SELECT * FROM repositories WHERE id = session.repository_id
+        API->>DB: SELECT from repositories WHERE id = session.repository_id
         DB-->>API: repo entity (check is_public or owner)
-        API->>DB: SELECT * FROM chat_messages WHERE session_id = :id ORDER BY created_at DESC LIMIT 20
+        API->>DB: SELECT from chat_messages WHERE session_id = id LIMIT 20
         DB-->>API: message history
-        API->>DB: INSERT INTO chat_messages (session_id, role='user', content=:q, attached_context=[...])
+        API->>DB: INSERT INTO chat_messages (role=user)
         API->>DB: UPDATE chat_sessions SET last_activity_at = now()
         API->>DB: Commit Tx 1 (User turn is permanently stored)
     end
 
     Note over API,Chroma: Retrieval Step
     API->>API: Generate embedding for question
-    API->>Chroma: Query collection repo_:repo_id for top-k nearest chunks
-    API->>Chroma: Exact fetch chunks for attached_context ("src/core/auth.py")
-    Chroma-->>API: Relevant code chunks with line ranges & symbol names
+    API->>Chroma: Query collection for top-k nearest chunks
+    API->>Chroma: Exact fetch chunks for attached context auth.py
+    Chroma-->>API: Relevant code chunks with line ranges and symbols
 
-    Note over API,LLM: Prompt Synthesis & Streaming
-    API->>API: build_chat_messages(system_prompt, history, retrieved_chunks, question)
-    API->>LLM: POST /chat/completions {stream: true, messages: [...]}
+    Note over API,LLM: Prompt Synthesis and Streaming
+    API->>API: build_chat_messages with system prompt, history, chunks
+    API->>LLM: POST /chat/completions with stream=true
     
     loop Token Streaming over SSE
         LLM-->>API: Token chunks
-        API-->>Browser: SSE event: "token" {content: "chunk"}
+        API-->>Browser: SSE event: token
     end
 
-    API-->>Browser: SSE event: "citations" {citations: [{file, start, end, symbol}]}
-    API-->>Browser: SSE event: "done"
+    API-->>Browser: SSE event: citations
+    API-->>Browser: SSE event: done
 
     rect rgb(240, 255, 240)
         Note over API,DB: Transaction 2: Save Assistant Turn
-        API->>DB: INSERT INTO chat_messages (session_id, role='assistant', content=accumulated_text, citations=[...])
+        API->>DB: INSERT INTO chat_messages (role=assistant, citations=...)
         API->>DB: Commit Tx 2 (Assistant turn is permanently stored)
     end
 ```
@@ -193,14 +193,14 @@ sequenceDiagram
     Note over Lifespan: Reaper runs every 30 seconds
     Lifespan->>Reaper: Trigger reap_stale_jobs(settings)
     
-    Reaper->>DB: UPDATE analysis_jobs SET status='failed', error='worker_timeout' WHERE status='running' AND now() - heartbeat_at > 300s RETURNING repository_id
-    DB-->>Reaper: [repo_id_1, repo_id_2]
+    Reaper->>DB: UPDATE analysis_jobs SET status=failed WHERE status=running AND heartbeat_at > 300s
+    DB-->>Reaper: repo_ids
     
     Note over Reaper,DB: Unblock Repositories
-    Reaper->>DB: UPDATE repositories SET status='failed', error_message='Analysis stopped responding...' WHERE id IN (repo_id_1, repo_id_2) AND status IN ('pending', 'cloning', 'analyzing')
+    Reaper->>DB: UPDATE repositories SET status=failed WHERE id IN repo_ids
     
     Note over DB: Partial Unique Index uq_active_job_per_repository is now cleared!
     
-    Browser->>Reaper: User clicks "Retry Analysis" (POST /repositories/:id/analyze)
-    Reaper->>DB: INSERT INTO analysis_jobs (status='queued') [SUCCEEDS]
+    Browser->>Reaper: User clicks Retry Analysis
+    Reaper->>DB: INSERT INTO analysis_jobs status=queued succeeds
 ```

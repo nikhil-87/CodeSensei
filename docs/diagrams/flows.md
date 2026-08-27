@@ -11,14 +11,14 @@ sequenceDiagram
   participant GH as GitHub
   U->>FE: Click "Sign in"
   FE->>BE: GET /auth/github/login
-  BE-->>U: 302 → GitHub consent (state cookie)
+  BE-->>U: 302 to GitHub consent (state cookie)
   U->>GH: Approve
   GH-->>BE: GET /auth/github/callback?code&state
-  BE->>BE: verify state; exchange code → token
+  BE->>BE: verify state; exchange code to token
   BE->>GH: GET /user profile
   BE->>BE: upsert user; mint JWT
-  BE-->>U: Set httpOnly cookie; 302 → frontend
-  FE->>BE: GET /auth/me → user
+  BE-->>U: Set httpOnly cookie; 302 to frontend
+  FE->>BE: GET /auth/me to fetch user
 ```
 
 ## Repository analysis (write path)
@@ -46,7 +46,7 @@ sequenceDiagram
   W->>PG: atomic replace files/symbols/deps/metrics + stamps
   W->>CH: chunk + embed + upsert (repo_<id>)  [best-effort]
   W->>PG: job SUCCEEDED + repo READY
-  BE-->>FE: SSE progress… succeeded
+  BE-->>FE: SSE progress... succeeded
 ```
 
 ## AI chat (RAG, read path)
@@ -61,10 +61,10 @@ sequenceDiagram
   participant LLM as Groq/Ollama
   FE->>BE: POST /chat-sessions/{id}/chat {question, attached_paths} (SSE)
   BE->>PG: check ownership; load history; save user turn
-  BE->>CH: embed question → top-k chunks (+ tagged files guaranteed)
+  BE->>CH: embed question to top-k chunks (+ tagged files guaranteed)
   BE->>LLM: prompt(system + context + history)
   LLM-->>BE: token stream
-  BE-->>FE: SSE token…
+  BE-->>FE: SSE token...
   BE-->>FE: SSE citations (numbered, deduped)
   BE->>PG: save assistant turn + citations + attached_context
   BE-->>FE: SSE done

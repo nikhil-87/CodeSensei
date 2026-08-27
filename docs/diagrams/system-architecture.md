@@ -4,37 +4,37 @@
 
 ```mermaid
 flowchart TB
-  user([User / Browser])
+  user([User or Browser])
   subgraph Edge
-    fe[Frontend SPA<br/>React + Vite + nginx]
+    fe[Frontend SPA React and Vite and Nginx]
   end
   subgraph Application
-    be[Backend API<br/>FastAPI / uvicorn]
-    wk[Worker<br/>RQ consumer]
+    be[Backend API FastAPI and Uvicorn]
+    wk[Worker RQ Consumer]
   end
   subgraph Stateful
-    pg[(PostgreSQL<br/>system of record)]
-    rd[(Redis<br/>queue + cache)]
-    ch[(ChromaDB<br/>vector store)]
+    pg[(PostgreSQL System of Record)]
+    rd[(Redis Queue and Cache)]
+    ch[(ChromaDB Vector Store)]
   end
   subgraph External
     groq[Groq LLM]
-    hf[HuggingFace embeddings]
-    gh[GitHub OAuth + clone]
+    hf[HuggingFace Embeddings]
+    gh[GitHub OAuth and Clone]
   end
 
   user -->|HTTPS| fe
-  fe -->|/api/v1 JSON + SSE| be
+  fe -->|/api/v1 JSON and SSE| be
   be -->|OAuth| gh
   be --> pg
   be --> rd
   be --> ch
-  be -->|chat tokens| groq
-  rd -->|jobs| wk
-  wk -->|git clone| gh
+  be -->|Chat Tokens| groq
+  rd -->|Jobs| wk
+  wk -->|Git Clone| gh
   wk --> pg
   wk --> ch
-  wk -->|embed| hf
+  wk -->|Embed| hf
 ```
 
 ## Component dependencies (build-time)
@@ -63,7 +63,7 @@ flowchart LR
   S --> Repo[Repository - data access]
   Repo --> M[ORM Model]
   M --> PG[(PostgreSQL)]
-  DI[DI container<br/>core/dependencies.py] -.builds.-> R
+  DI[DI container in core/dependencies.py] -.builds.-> R
   DI -.builds.-> S
   DI -.builds.-> Repo
 ```

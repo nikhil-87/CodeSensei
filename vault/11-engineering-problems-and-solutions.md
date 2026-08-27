@@ -271,5 +271,5 @@ Implemented a **weighted reverse-dependency BFS with exponential decay and sigmo
 2. **Exponential Distance Decay:** Direct dependents carry high risk; distant dependents decay exponentially:
    $$\text{risk}(d) = \exp(-0.5 \cdot (d - 1)) \quad \text{for } d \ge 1$$
 3. **Sigmoid Risk Saturation:** To prevent large repos from unbounded score growth, the aggregate score is squashed into a normalized $0.0 \dots 1.0$ range:
-   $$\text{overall\_risk} = 1.0 - \exp\left(-\frac{\sum \text{risk}}{8}\right)$$
+   $$\text{overall risk} = 1.0 - \exp\left(-\frac{\sum \text{risk}}{8}\right)$$
    A blast radius impacting 1–2 files yields a Low score (~0.2); impacting 15+ files saturates toward 1.0 (Critical).

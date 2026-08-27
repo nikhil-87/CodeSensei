@@ -39,7 +39,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-  user([Internet]) -->|HTTPS 443| ng[nginx + Let's Encrypt<br/>on the VM]
+  user([Internet]) -->|HTTPS 443| ng[Nginx and LetsEncrypt on the VM]
   ng -->|/| fe[frontend container :3000]
   ng -->|/api| be[backend container :8000]
   fe --> be
