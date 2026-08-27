@@ -1,0 +1,18 @@
+{
+  "name": "codesensei",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Root launcher for the CodeSensei local development stack",
+  "scripts": {
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action all",
+    "dev:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action all",
+    "dev:infra": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action infra",
+    "dev:backend": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action backend",
+    "dev:worker": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action worker",
+    "dev:frontend": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action frontend",
+    "ps": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action ps",
+    "logs": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action logs",
+    "health": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action health",
+    "down": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-local.ps1 -Action down"
+  }
+}
