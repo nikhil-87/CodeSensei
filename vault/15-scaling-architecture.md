@@ -81,6 +81,18 @@ flowchart TB
     Worker -->|Write Clones| FS
     Worker -->|HTTP Upsert| Chroma
     Worker -->|Inference HTTPS| HF
+
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef ingress fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81;
+    classDef app fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef storage fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d;
+    classDef external fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843;
+
+    class Browser client;
+    class Nginx ingress;
+    class API,Worker app;
+    class Chroma,FS storage;
+    class Neon,Upstash,Groq,HF external;
 ```
 
 ### 2.2 Characteristics & Limits
@@ -142,6 +154,16 @@ flowchart TB
     RedisCluster -->|Dequeue Tasks| WorkerPool
     WorkerPool -->|Persist Analyses| PGPrimary
     WorkerPool -->|Batch Vector Upserts| ChromaCluster
+
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef ingress fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81;
+    classDef app fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef storage fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d;
+
+    class Browser client;
+    class CDN,ALB ingress;
+    class API1,API2,API3,W1,W2,WN app;
+    class PGPrimary,PGReplica,RedisCluster,ChromaCluster storage;
 ```
 
 ### 3.3 Trade-offs & New Failure Modes
@@ -205,6 +227,18 @@ flowchart TB
     KEDAWorkers -->|Persist Results| DBCluster
     KEDAWorkers -->|Upsert Vectors| QdrantCluster
     KEDAWorkers -->|Store and Retrieve Tarball| S3
+
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef ingress fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81;
+    classDef app fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef engine fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px,color:#581c87;
+    classDef storage fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d;
+
+    class Client client;
+    class CDN,Ingress ingress;
+    class APIPods,QSmallW,QMedW,QLargeW app;
+    class LLMGateway engine;
+    class DBCluster,RedisHA,QdrantCluster,S3 storage;
 ```
 
 ### 4.3 Trade-offs & New Failure Modes
@@ -259,6 +293,18 @@ flowchart TB
     API_US --> ShardedDB
     API_US --> GlobalRedis
     API_US --> DistQdrant
+
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef ingress fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81;
+    classDef app fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef storage fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d;
+    classDef engine fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px,color:#581c87;
+
+    class UserGlobal client;
+    class Cloudflare ingress;
+    class API_US,Workers_US,API_EU app;
+    class Kafka_US,ShardedDB,GlobalRedis,DistQdrant storage;
+    class TritonCluster engine;
 ```
 
 ---

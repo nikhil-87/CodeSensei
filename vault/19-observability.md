@@ -33,6 +33,16 @@ flowchart LR
     Prom -->|GET :9100/metrics| Worker
 
     Grafana -->|PromQL Queries| Prom
+
+    classDef app fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef prom fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef grafana fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#9a3412;
+    classDef log fill:#f1f5f9,stroke:#475569,stroke-width:2px,color:#0f172a;
+
+    class API,Worker app;
+    class Prom prom;
+    class Grafana grafana;
+    class Loki log;
 ```
 
 ---

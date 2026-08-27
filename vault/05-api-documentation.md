@@ -37,6 +37,14 @@ flowchart TD
     RateLimit --> IntelGroup
     RateLimit --> AIGroup
     RateLimit --> SocialGroup
+
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef mw fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef route fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95;
+
+    class Client client;
+    class CORS,Prom,ReqCtx,RateLimit mw;
+    class HealthGroup,AuthGroup,RepoGroup,IntelGroup,AIGroup,SocialGroup route;
 ```
 
 ---

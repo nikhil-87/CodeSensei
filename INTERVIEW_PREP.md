@@ -344,6 +344,20 @@ flowchart TB
     Worker -->|Upsert Vectors| Chroma
     Worker -->|Embeddings Inference| HF
     Worker -.->|Local Embeddings Fallback| Ollama
+
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef ingress fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81;
+    classDef app fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef engine fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px,color:#581c87;
+    classDef storage fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d;
+    classDef external fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843;
+
+    class Browser client;
+    class Nginx ingress;
+    class Backend,Worker app;
+    class Engine engine;
+    class PG,Redis,Chroma storage;
+    class GitHub,Groq,HF,Ollama external;
 ```
 
 ---
@@ -473,6 +487,18 @@ flowchart TB
     KEDAWorkers -->|Persist Results| DBCluster
     KEDAWorkers -->|Upsert Vectors| QdrantCluster
     KEDAWorkers -->|Tarball Snapshots| S3
+
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef ingress fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81;
+    classDef app fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f;
+    classDef engine fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px,color:#581c87;
+    classDef storage fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d;
+
+    class Client,CDN client;
+    class Ingress ingress;
+    class APIPods,QSmallW,QMedW,QLargeW app;
+    class LLMGateway engine;
+    class DBCluster,RedisHA,QdrantCluster,S3 storage;
 ```
 
 ---

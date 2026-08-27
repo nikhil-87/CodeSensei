@@ -29,6 +29,18 @@ flowchart TD
     Discover --> RepoAnalyses["/discover/r?url=... (RepositoryAnalysesPage)"]
     Discover --> UserProfile["/u/:username (ProfilePage - Public)"]
     Dashboard --> Starred["/stars (StarredPage)"]
+
+    classDef auth fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    classDef core fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#0f172a;
+    classDef tool fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d;
+    classDef context fill:#fdf4ff,stroke:#c026d3,stroke-width:2px,color:#701a75;
+    classDef public fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#78350f;
+
+    class Login auth;
+    class Dashboard,SubmitModal,RepoRoot core;
+    class NavGraph,NavComp,NavDead,NavArch,NavImp,NavChat tool;
+    class CrossContext context;
+    class Discover,RepoAnalyses,UserProfile,Starred public;
 ```
 
 ---
