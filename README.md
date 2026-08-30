@@ -37,23 +37,23 @@
 
 | Capability | Implementation Mechanism | Codebase Ground Truth |
 | --- | --- | --- |
-| **Repository Ingestion** | `GitPython` shallow clone (`--depth 1`), branch-aware, sandboxed into `/var/lib/codesensei/workspaces` | Path traversal guarded with `safe_join`; URL validation prevents SSRF |
-| **Polyglot Code Parsing** | Dual-engine parser: native Python `ast` for Python; `tree-sitter` for JS/TS, Go, Rust, Java, C/C++; fallback regex parser | Extracts classes, functions, docstrings, call-sites, and imports concurrently via `ThreadPoolExecutor` |
-| **Dependency Graph & SCC** | Directed file-level import graph (`from_file_id -> to_file_id`) visualized in Cytoscape.js | Tarjan's Strongly Connected Components (SCC) algorithm detects and highlights circular dependency cycles |
+| **Repository Ingestion** | Native `git` CLI shallow clone (`--depth 1`, `subprocess.run(shell=False)`), branch-aware, scrubbed env (`GIT_TERMINAL_PROMPT=0`), sandboxed into `/var/lib/codesensei/workspaces` | Path traversal guarded with `safe_join`; URL validation prevents SSRF |
+| **Polyglot Code Parsing** | 3-tier parser registry: native Python `ast` for Python; `tree-sitter` for robust LOC/branching; fallback regex parser across 10 languages | Extracts classes, functions, docstrings, call-sites, and imports concurrently via `ThreadPoolExecutor` |
+| **Dependency Graph & SCC** | Directed file-level import graph (`from_file_id -> to_file_id`) visualized in Cytoscape.js | Iterative Tarjan's Strongly Connected Components (SCC) algorithm detects and highlights circular dependency cycles |
 | **Complexity Metrics** | Cyclomatic complexity (branching paths) + Cognitive complexity + LOC counters | Computes per-file, per-function, and per-class metrics stored in relational tables |
-| **Dead Code Detection** | Import and symbol reference counting + reachability traversal | Unreferenced exports and zero-caller functions flagged with file-level `dead_code_score` |
-| **Impact Blast Radius** | Reverse BFS traversal over incoming dependency edges (1–5 hops) | Distance decay $\exp(-0.5 \cdot (d-1))$ and sigmoid risk saturation $1.0 - \exp(-\sum \text{risk} / 8)$ |
-| **Architecture Discovery** | Rule-based path and import heuristics classify modules into 4 tiers | Generates live Mermaid C4-style component diagrams (`presentation`, `application`, `domain`, `infrastructure`) |
+| **Dead Code Detection** | Import and symbol reference counting + reachability traversal | Flags unimported files (conf 0.5) and unreferenced exports (conf 0.7) with file-level `dead_code_score` |
+| **Impact Blast Radius** | On-demand reverse BFS traversal over incoming dependency edges (1–5 hops) | Distance decay $\exp(-0.5 \cdot (d-1))$ and sigmoid risk saturation $1.0 - \exp(-\sum \text{risk} / 8)$ |
+| **Architecture Discovery** | Rule-based path and import heuristics classify modules into 8 layers | Generates live Mermaid flowcharts (`ui`, `controllers`, `services`, `repositories`, `models`, `infrastructure`, `tests`, `other`) and detects layering violations |
 | **Documentation Generator** | Structured markdown generator for README, architecture, API, and onboarding guides | Live `/api/v1/repositories/{id}/documentation` endpoint powered by LLM synthesis |
 | **Codebase RAG Q&A** | Two-phase transaction model; ChromaDB vector similarity + top-k retrieval; SSE streaming | Streams tokens via Server-Sent Events with numbered, deduplicated file and line citations |
-| **Stuck-Job Self-Healing** | Background `AnalysisReaper` loop runs every 30s in FastAPI lifespan | Automatically fails jobs with stale heartbeats (>300s) and clears partial unique index `uq_active_job_per_repository` |
+| **Stuck-Job Self-Healing** | Background `run_reaper_loop` runs every 30s in FastAPI lifespan (`analysis_reaper.py`) | Automatically fails jobs with stale heartbeats (>300s) and clears partial unique index `uq_active_job_per_repository` |
 | **Observability** | Prometheus metrics scraped on `:8000` (API) and `:9101` (Worker) | Structured JSON logging with `structlog`, binding `X-Request-ID` across middleware and service logs |
 
 ---
 
 ## Current System Architecture
 
-CodeSensei is engineered as a decoupled distributed system separating fast, synchronous HTTP API operations from burst-mode, CPU-bound asynchronous repository analysis pipelines.
+CodeSensei is engineered as a decoupled, asynchronous multi-service system separating fast, synchronous HTTP API operations from burst-mode, CPU-bound background repository analysis pipelines.
 
 ### Architecture Diagram
 
@@ -422,7 +422,7 @@ In addition to the primary [`vault/`](vault/) engineering knowledge base, suppor
 | **Frontend** | React 18.3 · TypeScript 5.6 · Vite 5.4 · Tailwind CSS 3.4 · TanStack Query 5 · Zustand 5 · Cytoscape.js 3.30 · Mermaid 11 · Lucide Icons |
 | **Backend API** | Python 3.12 · FastAPI 0.115 · SQLAlchemy 2.0 (asyncpg) · Pydantic v2 · Alembic 1.13 · PyJWT 2.9 · sse-starlette |
 | **Asynchronous Workers** | Python 3.12 · RQ 1.16 (Redis Queue) · psycopg2 · Tenacity retry logic |
-| **Analysis Engine** | Native Python `ast` · `tree-sitter` 0.23 (polyglot grammars) · GitPython 3.1 · pathspec · chardet |
+| **Analysis Engine** | Native Python `ast` · `tree-sitter` 0.23 (polyglot grammars) · Native `git` CLI (`subprocess.run`, `shell=False`) · pathspec · chardet |
 | **AI & Vector Search** | ChromaDB 0.5.5 · Groq Cloud (`llama-3.3-70b-versatile`) · HuggingFace Inference API (`all-MiniLM-L6-v2`) · Ollama fallback |
 | **Data Storage** | PostgreSQL 16 (System of Record, 10 tables) · Redis 7 (RQ Queue + response cache) · Local File Volume |
 | **Observability** | Prometheus (scraping `:8000` and `:9101`) · structlog (structured JSON) · Grafana |

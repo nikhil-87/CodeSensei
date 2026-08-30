@@ -108,10 +108,10 @@ flowchart TB
   - Persists atomic database snapshots: wipes prior files/symbols/metrics/dependencies for the repository and batch-inserts the new analysis run.
   - Manages real-time progress reporting and periodic `heartbeat_at` updates to the `analysis_jobs` table.
   - Conducts symbol-aware chunking and upserts embeddings into ChromaDB.
-  - Exposes worker metrics on port `:9100`.
+  - Exposes worker metrics on port `:9101`.
 
 ### 2.4 Analysis Engine Library (`analysis-engine/`)
-- **Technology:** Standalone Python library, `tree-sitter`, `tree-sitter-languages`, `chardet`, `GitPython`.
+- **Technology:** Standalone Python library, `tree-sitter`, `tree-sitter-languages`, `chardet`, native `git` CLI (`subprocess.run`).
 - **Responsibilities:**
   - Pure, stateless static code analysis with zero web or database framework dependencies.
   - Sandboxed Git cloning (`GitCloner`) enforcing shallow depth (`depth=1`), timeouts, and size limits.
@@ -134,7 +134,7 @@ flowchart TB
 ### 2.6 Queue & Cache (`Redis 7`)
 - **Technology:** Redis 7 (Hosted on Upstash in free-tier, or local container).
 - **Responsibilities:**
-  - Background task queue (`rq:queue:codesensei_analysis`).
+  - Background task queue (`rq:queue:analysis-jobs`).
   - In-memory JSON cache for expensive endpoint outputs (`repo:<id>:graph`, `repo:<id>:dead_code`, `repo:<id>:architecture`) with 1-hour TTL.
 
 ### 2.7 Vector Database (`ChromaDB 0.5.5`)
@@ -162,7 +162,7 @@ flowchart TB
 | **Backend** | **ChromaDB** | HTTP REST (Port 8000) | Query embedding vector, top-k chunks | Falls back to empty context; logs warning; UI receives answer with disclaimer. |
 | **Backend** | **Groq API** | HTTPS REST / SSE | OpenAI-compatible chat completion payload | Emits SSE `error` event followed by `done`; client renders retry banner. |
 | **Worker** | **Redis** | Redis Protocol (RESP / TLS) | Dequeue RQ job specs | Worker reconnects on next poll interval; drops connection to prevent timeout. |
-| **Worker** | **GitHub** | Git over HTTPS (Port 443) | Git packfiles (shallow clone) | Cloner raises `CloneTimeoutError` or `RepoTooLargeError`; job fails cleanly. |
+| **Worker** | **GitHub** | Git over HTTPS (Port 443) | Git packfiles (shallow clone) | Cloner raises `CloneError` or `RepositoryTooLargeError`; job fails cleanly. |
 | **Worker** | **PostgreSQL** | Sync TCP (Port 5432, SSL) | Heartbeat updates, batch row inserts | Transaction rolls back; job marks failed; reaper unblocks repository. |
 | **Worker** | **HuggingFace** | HTTPS REST | Batch code chunk texts -> dense vectors | Worker raises `IndexingDegraded`; logs warning; analysis still succeeds. |
 | **Worker** | **ChromaDB** | HTTP REST (Port 8000) | Chunk text, metadata, embedding vectors | Worker logs warning; marks indexed chunks as 0; job succeeds without vectors. |

@@ -36,10 +36,10 @@
   3. Regex fallback parser extracting symbols and import patterns.
 - **FR-ANALYSIS-07 (Dependency Graph & Cycle Detection):** The engine resolves imports into directed dependency edges. Tarjan's Strongly Connected Components algorithm detects circular dependency cycles across files.
 - **FR-ANALYSIS-08 (Code Complexity Scoring):** The system computes cyclomatic complexity, cognitive complexity, lines of code, function counts, and class counts for every source file.
-- **FR-ANALYSIS-09 (Dead Code Detection):** The system identifies unreferenced symbols and computes a `dead_code_score` per file, differentiating internal unreferenced symbols (confidence 0.95) from unused exported symbols (confidence 0.60).
+- **FR-ANALYSIS-09 (Dead Code Detection):** The system identifies unreferenced symbols and computes a `dead_code_score` per file, differentiating unimported non-entrypoint files (confidence 0.5) from exported symbols unreferenced outside their definition (confidence 0.7).
 - **FR-ANALYSIS-10 (Architecture Layer Discovery):** The engine classifies files into architectural layers (`controllers`, `services`, `repositories`, `models`, `infrastructure`, `ui`, `tests`) and top-level components, outputting valid Mermaid flowchart diagrams.
 - **FR-ANALYSIS-11 (Atomic Persistence):** Worker wipes prior analysis rows (`source_files`, `symbols`, `dependencies`, `metrics`) and re-inserts the newly parsed run atomically within a database transaction.
-- **FR-ANALYSIS-12 (Stuck-Job Reaper):** The worker periodically writes `heartbeat_at` timestamps to the job row. A background reaper loop running in the API checks for jobs with expired heartbeats (>300s) or unstarted queued jobs (>900s), marking them failed and releasing the active-job lock.
+- **FR-ANALYSIS-12 (Stuck-Job Reaper):** The worker periodically writes `heartbeat_at` timestamps to the job row. A background reaper loop running in the API checks for jobs with expired heartbeats (>900s default) or unstarted queued jobs (>1800s default), marking them failed and releasing the active-job lock.
 
 ### 1.4 Intelligence & Exploration Features
 - **FR-INTEL-01 (Dependency Graph Inspection):** Clients can retrieve the full dependency graph (`GET /api/v1/repositories/{id}/dependencies`) including nodes, edges, in/out degrees, and detected cycle groupings. Responses are cached in Redis.

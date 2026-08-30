@@ -35,7 +35,7 @@
 | IDOR mitigation on private resources | **Implemented** | `verify_repository_access` raises `404 Not Found` (never 403) to prevent UUID probing. |
 | Stateless signed session management | **Implemented** | HS256 JWT in `httpOnly`, `SameSite=Lax`, `secure` cookie (`auth.py`). |
 | OAuth CSRF state verification | **Implemented** | Cryptographic random state token checked in `codesensei_oauth_state` cookie (600s TTL). |
-| Command injection mitigation in Git | **Implemented** | `validate_branch_name` blocks leading dashes; `GitPython` passes arguments as list. |
+| Command injection mitigation in Git | **Implemented** | `validate_branch_name` blocks leading dashes; `GitCloner` passes arguments as list via `subprocess.run(shell=False)`. |
 | Production API docs suppression | **Implemented** | Swagger/ReDoc disabled when `APP_ENV=production` in `main.py`. |
 | Centralized secrets management | **Partially Implemented** | Read from `.env` via Pydantic `BaseSettings`. Missing HashiCorp Vault/AWS Secrets Manager integration. |
 
@@ -58,7 +58,7 @@
 | Worker auto-scaling on queue depth | **Partially Implemented** | `WORKER_REPLICAS` setting supported in Compose; dynamic KEDA autoscaling planned for Stage 2. |
 | Distributed rate limiting | **Partially Implemented** | Sliding window rate limiter implemented in-memory; needs Redis token bucket for multi-replica pods. |
 | Vector database horizontal sharding | **Partially Implemented** | Single ChromaDB container; needs migration to Qdrant cluster for Stage 2. |
-| Tiered priority queues | **Missing** | Single queue `codesensei_analysis`; large repos can block small repos until Stage 2. |
+| Tiered priority queues | **Missing** | Single queue `analysis-jobs`; large repos can block small repos until Stage 2. |
 
 ### 2.4 Database & Storage
 | Item | Status | Code / Configuration Evidence |

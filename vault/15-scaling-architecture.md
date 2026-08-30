@@ -112,7 +112,7 @@ flowchart TB
 1. **Stateless API Cluster:** Scale FastAPI horizontally across multiple instances (3–5 replicas) behind an AWS Application Load Balancer (ALB) to handle concurrent HTTP/SSE traffic.
 2. **Dedicated Redis Cluster / Dragonfly:** Replace serverless Upstash with a self-managed, high-throughput Redis instance (or Dragonfly) with persistent TCP connections, enabling standard RQ pubsub and Redis-backed distributed rate limiting.
 3. **Dedicated PostgreSQL with Read Replicas:** Transition from Neon free tier to Amazon RDS PostgreSQL (Primary for writes + 1 Read Replica for Discover hub, Dependency Graph reads, and user profiles).
-4. **Independent Auto-Scaling Worker Pool:** Decouple background workers into a dedicated Auto Scaling Group (ASG) running 2–8 workers scaled dynamically on Redis queue depth (`rq:queue:codesensei_analysis`).
+4. **Independent Auto-Scaling Worker Pool:** Decouple background workers into a dedicated Auto Scaling Group (ASG) running 2–8 workers scaled dynamically on Redis queue depth (`rq:queue:analysis-jobs`).
 5. **Ephemeral NVMe Worker Scratch Disks:** Replace shared Docker workspace volumes with fast local NVMe instance storage for Git clones.
 
 ### 3.2 Architecture Diagram (Stage 1)

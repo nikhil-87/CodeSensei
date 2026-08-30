@@ -36,7 +36,7 @@
 # 1. Elevator Pitches & Project Narratives
 
 ### 1.1 The 30-Second Elevator Pitch
-> *"CodeSensei is a distributed GitHub repository intelligence platform that turns any public codebase into an interactive knowledge asset. It shallow-clones repositories, performs multi-language static analysis using AST and Tree-sitter parsers, builds an interactive dependency graph with Tarjan's cycle detection, calculates complexity and blast-radius metrics, and provides a streaming conversational AI assistant grounded in the source code with verifiable file and line citations—all engineered to run reliably on zero-cost, free-tier infrastructure."*
+> *"CodeSensei is an asynchronous GitHub repository intelligence and exploration platform that turns any public codebase into an interactive knowledge asset. It shallow-clones repositories, performs multi-language static analysis using AST and Tree-sitter parsers, builds an interactive dependency graph with Tarjan's cycle detection, calculates complexity and blast-radius metrics, and provides a streaming conversational AI assistant grounded in the source code with verifiable file and line citations—all engineered to run reliably on zero-cost, free-tier infrastructure."*
 
 ### 1.2 The 1-Minute Architectural Pitch
 > *"The core architectural philosophy behind CodeSensei is strict decoupling: static code analysis is CPU- and disk-intensive, so our FastAPI backend accepts repository submissions asynchronously, validates URLs against SSRF, enforces job mutual exclusion via a PostgreSQL partial unique index, and immediately returns HTTP 202 while enqueueing the task to Redis.*
@@ -116,7 +116,7 @@ Repository analysis combines several non-trivial engineering disciplines:
 │  - Multi-Threaded Parser Invocation (`ThreadPoolExecutor`, 4 workers)  │
 │  - Atomic Batch Persistence (`persist_repository_analysis`)            │
 │  - Symbol-Aware Code Chunking & Vector Upsertion (`_try_index`)        │
-│  - Metrics Exposition on Port :9100                                    │
+│  - Metrics Exposition on Port :9101                                    │
 └───────┬───────────────────────────┬────────────────────────────────────┘
         │ Drives Execution          │ Vector Upsert
         ▼                           ▼
@@ -261,7 +261,7 @@ Repository analysis combines several non-trivial engineering disciplines:
   2. Worker host disk fills up from concurrent Git clones.
   3. Upstash Redis daily command quota (10,000 cmds/day) exhausts within 2 hours.
 - **Architectural Evolutions (`[PROPOSED / SCALING OPTION]`):**
-  1. **Dynamic Worker Auto-Scaling:** Move background workers to an Auto Scaling Group (ASG) or Kubernetes Deployment, scaling worker pods from 2 to 10 instances based on Redis queue depth (`rq:queue:codesensei_analysis`).
+  1. **Dynamic Worker Auto-Scaling:** Move background workers to an Auto Scaling Group (ASG) or Kubernetes Deployment, scaling worker pods from 2 to 10 instances based on Redis queue depth (`rq:queue:analysis-jobs`).
   2. **Ephemeral NVMe Scratch Storage:** Mount dedicated high-IOPS NVMe instance storage (`/tmp/workspaces`) on worker nodes. Delete cloned repositories immediately after database persistence and vector indexing.
   3. **Pre-Flight GitHub Size Verification:** Query the GitHub REST API (`GET /repos/{owner}/{repo}`) before cloning to check repository `size` and `archived` status, rejecting repos >100MB *before* allocating network bandwidth and worker time.
 
@@ -859,9 +859,9 @@ erDiagram
 | **PostgreSQL Down** | API requests fail; `/readyz` probe reports `degraded`. | **Partially** | Global exception handler maps to HTTP 500; probe flags health. | In-flight worker jobs crash and cannot persist results. | Automated connection retry backoff with circuit breaker. |
 | **Redis Down (Queue)** | Enqueueing fails with HTTP 503 (`QueueUnavailableError`). | **Yes** | `JobDispatcher` catches `RedisError`, logs error, raises 503. | Submissions rejected until Redis recovers. | Disk spooling or SQLite fallback queue during outages. |
 | **Redis Down (Cache)** | Cache reads fail; API falls back to PostgreSQL queries. | **Yes** | `RedisCache.get_json` catches error, returns `None`; DB handles read. | Increased read load on PostgreSQL during cache downtime. | In-memory LRU cache fallback (e.g. `cachetools`) in API. |
-| **Worker OOM Kill** | Worker dies; job remains `running` until timeout. | **Yes** | `AnalysisReaper` sweeps every 30s, fails jobs with heartbeat >300s. | Up to 300s delay before user sees failure and can retry. | Decrease timeout to 60s for small repositories. |
-| **Git Clone Timeout** | Large repo hangs git clone over slow network. | **Yes** | `GitCloner` sets `CLONE_TIMEOUT_SECONDS=120`; terminates process. | Consumes 120s of worker compute before failing. | Pre-check repository size via GitHub API before cloning. |
-| **Oversized Repo (>100MB)** | Clone exceeds disk limit. | **Yes** | `GitCloner` checks directory size, raises `RepoTooLargeError`. | Cloned bytes must hit disk before size check aborts. | Execute GitHub API pre-check on `size` field. |
+| **Worker OOM Kill** | Worker dies; job remains `running` until timeout. | **Yes** | `AnalysisReaper` sweeps every 60s by default, fails jobs with heartbeat >900s (queued >1800s). | Up to 900s delay before user sees failure and can retry. | Decrease timeout to 60s for small repositories. |
+| **Git Clone Timeout** | Large repo hangs git clone over slow network. | **Yes** | `GitCloner` sets `CLONE_TIMEOUT_SECONDS=300` (default); terminates process and raises `CloneError`. | Consumes up to 300s of worker compute before failing. | Pre-check repository size via GitHub API before cloning. |
+| **Oversized Repo (>500MB)** | Clone exceeds disk limit. | **Yes** | `GitCloner` checks directory size, raises `RepositoryTooLargeError` (default `API_MAX_REPO_SIZE_MB=500`). | Cloned bytes must hit disk before size check aborts. | Execute GitHub API pre-check on `size` field. |
 | **Malformed File Bytes** | File contains invalid UTF-8 or binary corruption. | **Yes** | `_decode()` runs UTF-8 then `chardet` Latin-1 guess; skips binary files. | High CPU cost on very large binary files misidentified as code. | Use fast Rust-based encoding detectors or magic bytes. |
 | **Parser Syntax Crash** | Invalid syntax crashes Tree-sitter on a file. | **Yes** | `ParserRegistry` catches error, falls back to Regex; returns empty metrics. | File metrics record LOC=0 and missing symbols. | Log warning with file path for parser grammar tuning. |
 | **ChromaDB Down (Indexing)**| Vector upsert fails during worker analysis. | **Yes** | Worker catches `IndexingDegraded`, logs warning. **Job still SUCCEEDS.** | Code graph works, but AI chat lacks vector search. | Spool pending embedding batches to re-index on recovery. |
@@ -877,7 +877,7 @@ erDiagram
 | :--- | :--- | :--- | :--- | :--- |
 | **SSRF** | Attacker submits `http://169.254.169.254` (cloud metadata). | `validate_github_url` enforces https, host `github.com`, port 443/none, no credentials, regex `/<owner>/<repo>`. | Only validates GitHub host; does not inspect IP after DNS resolution. | Implement DNS resolution pinning or network egress proxy. |
 | **Path Traversal** | Malicious repo path `../../etc/passwd`. | `safe_join` verifies path resolves within workspace root and rejects backslashes (`\`) unconditionally. | None — robust path sandbox enforcement. | Already optimal. |
-| **Command Injection**| Malicious branch name `--upload-pack=calc.exe`. | `validate_branch_name` blocks leading dashes and control chars; `GitPython` passes args as list. | None — shell interpretation is disabled. | Already optimal. |
+| **Command Injection**| Malicious branch name `--upload-pack=calc.exe`. | `validate_branch_name` blocks leading dashes and control chars; `GitCloner` passes args as list via `subprocess.run(shell=False)`. | None — shell interpretation is disabled. | Already optimal. |
 | **IDOR** | Attacker guesses UUIDs of private repos or chats. | `verify_repository_access` and `ChatSessionService` return `404 Not Found` (never 403) for unowned resources. | None — existence is never leaked to callers. | Already optimal. |
 | **XSS Token Theft** | Malicious script steals JWT from browser storage. | JWT session stored exclusively in `httpOnly`, `SameSite=Lax`, `secure` cookies. | Does not prevent XSS execution, but prevents token exfiltration. | Add strict Content Security Policy (CSP) headers in Nginx. |
 | **OAuth CSRF** | Attacker tricks victim into linking attacker's account. | `codesensei_oauth_state` cookie signed and verified on callback (600s TTL). | None. | Already optimal. |
@@ -1012,11 +1012,11 @@ erDiagram
 13. **Concurrency Race?** PostgreSQL partial unique index `uq_active_job_per_repository` on `status IN ('queued', 'running')`.
 14. **Worker Crash Recovery?** Worker writes `heartbeat_at`; FastAPI `AnalysisReaper` fails jobs older than 300s.
 15. **Streaming DB Safety?** Dual-transaction pattern: Tx 1 commits user turn before stream; Tx 2 commits assistant turn.
-16. **Cycle Detection?** Tarjan's Strongly Connected Components algorithm running in linear $O(V+E)$ time.
-17. **Blast Radius?** Reverse-dependency BFS traversal with exponential decay distance weighting: $\exp(-0.5 \cdot (d-1))$.
-18. **Dead Code Heuristic?** Analyzes unreferenced internal symbols (confidence 0.95) vs unused exported symbols (0.60).
+16. **Cycle Detection?** Iterative, stack-based Tarjan's Strongly Connected Components algorithm running in linear $O(V+E)$ time (preventing recursion limits).
+17. **Blast Radius?** On-demand reverse-dependency BFS traversal with exponential decay distance weighting: $\exp(-0.5 \cdot (d-1))$ and sigmoid saturation.
+18. **Dead Code Heuristic?** Analyzes unimported non-entrypoint files (confidence 0.5) vs exported symbols unreferenced outside their definition (confidence 0.7).
 19. **Cache Invalidation?** Worker calls `cache.delete_prefix("repo:<id>:")` using non-blocking Redis `scan_iter`.
-20. **Observability?** `structlog` JSON logs with bound `request_id`; Prometheus metrics on `/metrics` and `:9100`.
+20. **Observability?** `structlog` JSON logs with bound `request_id`; Prometheus metrics on `/metrics` and `:9101`.
 
 ---
 

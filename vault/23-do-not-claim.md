@@ -66,7 +66,7 @@
 - **Temptation to Claim:** Claiming the platform is built on microservices communicating asynchronously over Apache Kafka or RabbitMQ.
 - **The Codebase Truth:** CodeSensei is a **clean, modular monolith with a background worker**:
   - Backend API (FastAPI) and Background Worker (RQ) share the same PostgreSQL database and Redis instance.
-  - Communication is through simple Redis Queue (RQ) job specifications (`rq:queue:codesensei_analysis`).
+  - Communication is through simple Redis Queue (RQ) job specifications (`rq:queue:analysis-jobs`).
 - **Why You Will Get Caught:** The interviewer will ask about Kafka topic partitioning, consumer group rebalancing, and transactional outbox patterns, none of which exist in the codebase.
 - **What to Say Instead:**
   > *"We deliberately chose a modular monolith with an asynchronous background worker using Redis Queue. This avoided distributed systems overhead and let us run the entire platform on zero-cost free-tier infrastructure while maintaining clean module boundaries."*
