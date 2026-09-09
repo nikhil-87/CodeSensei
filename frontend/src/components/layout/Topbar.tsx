@@ -10,7 +10,7 @@ export function Topbar() {
   const toggle = useUiStore((s) => s.toggleSidebar);
   const openMobileNav = useUiStore((s) => s.openMobileNav);
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useMe();
+  const { user, isAuthenticated, isLoading } = useMe();
   const logout = useLogout();
 
   const handleLogout = () => {
@@ -45,7 +45,9 @@ export function Topbar() {
       </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        {isAuthenticated && user ? (
+        {isLoading ? (
+          <div className="h-7 w-20 animate-pulse rounded-md bg-ink-100" />
+        ) : isAuthenticated && user ? (
           <div className="flex items-center gap-2 pl-2">
             <Link
               to={`/u/${user.username}`}

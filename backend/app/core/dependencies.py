@@ -295,6 +295,10 @@ async def get_optional_user(
 
     token = request.cookies.get(settings.session_cookie_name)
     if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+    if not token:
         return None
     claims = decode_session_token(settings, token)
     if not claims:

@@ -1,19 +1,19 @@
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { StatusBadge } from "../StatusBadge";
 
 describe("StatusBadge", () => {
   it("renders the status as label by default", () => {
-    render(<StatusBadge status="ready" />);
-    const badge = screen.getByText("ready");
+    const { getByText } = render(<StatusBadge status="ready" />);
+    const badge = getByText("ready");
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveAttribute("data-status", "ready");
   });
 
   it("uses the custom label when provided", () => {
-    render(<StatusBadge status="failed" label="Crashed" />);
-    expect(screen.getByText("Crashed")).toBeInTheDocument();
+    const { getByText } = render(<StatusBadge status="failed" label="Crashed" />);
+    expect(getByText("Crashed")).toBeInTheDocument();
   });
 
   it.each([

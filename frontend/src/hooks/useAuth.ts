@@ -11,13 +11,24 @@ export function useMe() {
     queryKey: ME_QUERY_KEY,
     queryFn: AuthApi.me,
     staleTime: 5 * 60 * 1000,
-    retry: false,
+    retry: (failureCount, error) => {
+      const status =
+        typeof error === "object" && error !== null && "status" in error
+          ? (error as { status: number }).status
+          : 0;
+      if (status === 401) return false;
+      return failureCount < 2;
+    },
   });
 
   return {
     user: query.data ?? null,
-    isLoading: query.isLoading,
-    isAuthenticated: !!query.data,
+    isLoading: query.isPending || query.isLoading,
+    isPending: query.isPending,
+    isError: query.isError,
+    error: query.error,
+    isAuthenticated: Boolean(query.data),
+    refetch: query.refetch,
   };
 }
 

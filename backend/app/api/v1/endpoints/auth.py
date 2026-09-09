@@ -12,6 +12,8 @@ the login redirect and the callback.
 """
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import structlog
 from fastapi import APIRouter, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -35,10 +37,12 @@ _STATE_TTL_SECONDS = 600  # 10 minutes to complete the round-trip
 
 
 def _set_session_cookie(response: Response, settings: SettingsDep, token: str) -> None:
+    expires = datetime.now(UTC) + timedelta(seconds=settings.session_ttl_seconds)
     response.set_cookie(
         key=settings.session_cookie_name,
         value=token,
         max_age=settings.session_ttl_seconds,
+        expires=expires,
         httponly=True,
         secure=settings.is_production,
         samesite="lax",

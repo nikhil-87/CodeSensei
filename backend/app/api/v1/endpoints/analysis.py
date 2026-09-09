@@ -8,10 +8,18 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Depends, status
 from sse_starlette.sse import EventSourceResponse
 
-from app.core.dependencies import AnalysisServiceDep, verify_repository_access
+from app.core.dependencies import (
+    AnalysisServiceDep,
+    CacheDep,
+    JobQueueDep,
+    SettingsDep,
+    verify_repository_access,
+)
+from app.db.session import get_session_factory
 from app.models.analysis_job import AnalysisJobStatus
 from app.observability.metrics import analysis_jobs_enqueued_total
 from app.schemas.analysis import AnalysisJobRead, AnalysisProgressEvent
+from app.services.analysis_service import AnalysisService
 
 router = APIRouter(
     prefix="/repositories/{repository_id}",
@@ -67,7 +75,9 @@ async def latest_job(
 )
 async def stream_events(
     repository_id: uuid.UUID,
-    service: AnalysisServiceDep,
+    settings: SettingsDep,
+    queue: JobQueueDep,
+    cache: CacheDep,
 ) -> EventSourceResponse:
     async def event_publisher() -> AsyncIterator[dict[str, str]]:
         terminal = {
@@ -75,14 +85,19 @@ async def stream_events(
             AnalysisJobStatus.FAILED,
             AnalysisJobStatus.CANCELLED,
         }
-        # Initial snapshot
-        job = await service.latest_job_for_repository(repository_id)
+        factory = get_session_factory(settings)
+        # Initial snapshot with a short-lived session so pool is not starved
+        async with factory() as session:
+            service = AnalysisService(session, queue, cache, settings)
+            job = await service.latest_job_for_repository(repository_id)
         yield _serialize(job)
 
         # Poll every 1s until terminal or client disconnects.
         while job.status not in terminal:
             await asyncio.sleep(1.0)
-            job = await service.get_job(job.id)
+            async with factory() as session:
+                service = AnalysisService(session, queue, cache, settings)
+                job = await service.get_job(job.id)
             yield _serialize(job)
         yield _serialize(job, final=True)
 

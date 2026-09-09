@@ -11,8 +11,18 @@ export const AuthApi = {
     try {
       const { data } = await apiClient.get<User>("/auth/me");
       return data;
-    } catch {
-      return null;
+    } catch (error: unknown) {
+      // 401 is the only genuine unauthenticated state; return null for it.
+      const status =
+        typeof error === "object" && error !== null && "status" in error
+          ? (error as { status: number }).status
+          : 0;
+      if (status === 401) {
+        return null;
+      }
+      // Re-throw network failures, timeouts, or 5xx errors so React Query
+      // knows it's an error rather than wiping the authenticated session.
+      throw error;
     }
   },
 
