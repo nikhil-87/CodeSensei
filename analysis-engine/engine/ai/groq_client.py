@@ -122,7 +122,12 @@ class GroqClient:
         content = choices[0].get("message", {}).get("content")
         if not isinstance(content, str):
             raise GenerationError(f"Groq returned no message content: {payload!r}")
-        return content
+        return (
+            content.replace("【", "[")
+            .replace("】", "]")
+            .replace("\u2011", "-")
+            .replace("\u202f", " ")
+        )
 
     # ------------------------------------------------------------------
     # Chat — streaming
@@ -150,7 +155,9 @@ class GroqClient:
                     "stream": True,
                 },
             ) as response:
-                response.raise_for_status()
+                if response.status_code >= 400:
+                    response.read()
+                    response.raise_for_status()
                 for line in response.iter_lines():
                     if not line or line.startswith(":"):
                         continue
@@ -163,6 +170,12 @@ class GroqClient:
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
                             content = delta.get("content")
                             if content:
+                                content = (
+                                    content.replace("【", "[")
+                                    .replace("】", "]")
+                                    .replace("\u2011", "-")
+                                    .replace("\u202f", " ")
+                                )
                                 yield content
                         except json.JSONDecodeError:
                             continue
@@ -174,20 +187,36 @@ class GroqClient:
     def _handle_http_error(self, exc: httpx.HTTPStatusError) -> None:
         """Translate HTTP errors to domain errors with helpful messages."""
         status = exc.response.status_code
+        error_msg = str(exc)
         try:
-            # The streaming path raises before the body is consumed, so we
-            # must read it explicitly before touching ``.json()``/``.text``.
+            # If the response hasn't been read yet and isn't closed, read it
             if not exc.response.is_closed:
-                exc.response.read()
-            body = exc.response.json()
-            error_msg = body.get("error", {}).get("message", str(exc))
+                try:
+                    exc.response.read()
+                except Exception:
+                    pass
+
+            # Try reading content or cached _content safely
+            content = getattr(exc.response, "_content", None)
+            if content:
+                try:
+                    body = json.loads(content)
+                    error_msg = body.get("error", {}).get("message", str(exc))
+                except Exception:
+                    error_msg = content.decode("utf-8", errors="replace")
         except Exception:
-            error_msg = exc.response.text or str(exc)
+            pass
 
         if status == 401:
             raise GenerationError(
                 f"Groq API key invalid or missing. Get a free key at "
                 f"https://console.groq.com/keys — Error: {error_msg}"
+            ) from exc
+        elif status == 404:
+            raise GenerationError(
+                f"Groq model '{self._settings.chat_model}' not found or deprecated. "
+                f"Update GROQ_CHAT_MODEL in .env (e.g. openai/gpt-oss-120b or qwen/qwen3.8-27b). "
+                f"Error: {error_msg}"
             ) from exc
         elif status == 429:
             raise GenerationError(

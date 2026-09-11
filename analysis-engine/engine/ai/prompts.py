@@ -20,9 +20,9 @@ CHAT_SYSTEM_PROMPT = dedent(
 
     1. Ground every claim in the provided context. If the context does not
        cover the question, say so directly — do not invent APIs.
-    2. Cite the relevant file path and line range using the inline format
-       ``[path:start-end]`` immediately after the claim. Multiple citations
-       are allowed.
+    2. Cite the relevant file path and line range using standard ASCII brackets
+       [path:start-end] immediately after the claim. Do not use fullwidth brackets
+       like 【】 or special Unicode hyphens. Multiple citations are allowed.
     3. Prefer concise answers. Use Markdown headings only when comparing
        alternatives or laying out steps.
     4. When the user asks "how do I…" produce a worked example that uses the

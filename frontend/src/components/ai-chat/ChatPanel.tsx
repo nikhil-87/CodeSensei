@@ -26,6 +26,7 @@ import { useSessionChat } from "@/hooks/useSessionChat";
 import { cn } from "@/lib/format";
 import { useNodeContextStore } from "@/store/nodeContextStore";
 import type { AttachedContext, ChatCitation, ChatSession } from "@/types/api";
+import { MarkdownText } from "./MarkdownText";
 
 interface ChatPanelProps {
   repositoryId: string;
@@ -505,7 +506,7 @@ function Conversation({
               <AttachedBadges attached={t.attached} />
             )}
             {t.role === "assistant" ? (
-              <AssistantText content={t.content} citations={t.citations ?? []} />
+              <MarkdownText content={t.content} citations={t.citations ?? []} />
             ) : (
               <p className="whitespace-pre-wrap">{t.content}</p>
             )}
@@ -517,7 +518,7 @@ function Conversation({
 
         {isStreaming && draft && (
           <Bubble role="assistant" pending>
-            <p className="whitespace-pre-wrap">{stripCitations(draft)}</p>
+            <MarkdownText content={draft} isStreaming />
           </Bubble>
         )}
         {isStreaming && !draft && (
@@ -650,7 +651,7 @@ function Bubble({
           "max-w-[85%] rounded-lg px-4 py-2.5 text-sm leading-relaxed shadow-card",
           role === "user"
             ? "bg-accent-600 text-white"
-            : "bg-surface text-ink-900",
+            : "bg-surface text-ink-900 border border-ink-200/60",
           pending && "animate-pulse",
         )}
       >
@@ -709,78 +710,7 @@ function Citations({ citations }: { citations: ChatCitation[] }) {
   );
 }
 
-// Inline citation markers the model emits, e.g. `[path/to/file.ts:120-140]`,
-// sometimes wrapped in backticks. We strip these from the prose and replace
-// them with a small numbered marker that maps to the sources dropdown.
-const INLINE_CITATION_RE =
-  /`?\[`?\s*([^\]`]+?)\s*:\s*(\d+)(?:\s*-\s*(\d+))?\s*`?\]`?/g;
 
-function buildCitationNumbers(citations: ChatCitation[]) {
-  const exact = new Map<string, number>();
-  const byPath = new Map<string, number>();
-  citations.forEach((c, i) => {
-    exact.set(`${c.file_path}:${c.line_start}-${c.line_end}`, i + 1);
-    if (!byPath.has(c.file_path)) byPath.set(c.file_path, i + 1);
-  });
-  return { exact, byPath };
-}
-
-/** Remove inline citation tokens from text (used for the streaming preview). */
-function stripCitations(text: string): string {
-  return text.replace(INLINE_CITATION_RE, "").replace(/[ \t]{2,}/g, " ");
-}
-
-function CitationMarker({ n, label }: { n: number; label: string }) {
-  return (
-    <sup
-      title={label}
-      className="mx-0.5 inline-flex h-3.5 min-w-3.5 items-center justify-center rounded bg-accent-100 px-1 align-super text-[9px] font-semibold leading-none text-accent-700"
-    >
-      {n}
-    </sup>
-  );
-}
-
-/**
- * Render an assistant answer: prose with inline `[path:lines]` citation tokens
- * replaced by small numbered markers that correspond to the sources dropdown.
- * Unknown citations (not in the sources list) are simply dropped so the user
- * never sees raw file-path noise.
- */
-function AssistantText({
-  content,
-  citations,
-}: {
-  content: string;
-  citations: ChatCitation[];
-}) {
-  if (citations.length === 0) {
-    return <p className="whitespace-pre-wrap">{stripCitations(content).trim()}</p>;
-  }
-
-  const { exact, byPath } = buildCitationNumbers(citations);
-  const nodes: React.ReactNode[] = [];
-  let last = 0;
-  let key = 0;
-  INLINE_CITATION_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = INLINE_CITATION_RE.exec(content)) !== null) {
-    const [full, path, start, end] = m;
-    if (m.index > last) nodes.push(content.slice(last, m.index));
-    const n = path
-      ? (end ? exact.get(`${path}:${start}-${end}`) : undefined) ??
-        byPath.get(path)
-      : undefined;
-    if (n) {
-      const label = end ? `${path}:${start}-${end}` : `${path}:${start}`;
-      nodes.push(<CitationMarker key={`cm-${key++}`} n={n} label={label} />);
-    }
-    last = m.index + full.length;
-  }
-  if (last < content.length) nodes.push(content.slice(last));
-
-  return <p className="whitespace-pre-wrap">{nodes}</p>;
-}
 
 function Dot({ delay = 0 }: { delay?: number }) {
   return (

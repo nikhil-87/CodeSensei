@@ -155,6 +155,8 @@ class OllamaClient:
         }
         try:
             with self._client.stream("POST", "/api/chat", json=body) as response:
+                if response.status_code >= 400:
+                    response.read()
                 response.raise_for_status()
                 for line in response.iter_lines():
                     if not line:

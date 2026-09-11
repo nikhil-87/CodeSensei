@@ -70,7 +70,7 @@ except ImportError:  # pragma: no cover - standalone engine fallback
 
     # Groq (cloud LLM)
     GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-    GROQ_CHAT_MODEL = "llama-3.3-70b-versatile"
+    GROQ_CHAT_MODEL = "openai/gpt-oss-120b"
     GROQ_TIMEOUT_SECONDS = 120
     GROQ_MAX_RETRIES = 3
 
